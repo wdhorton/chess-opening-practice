@@ -151,6 +151,7 @@
             <div class="button-group">
                 <button id="copyFenBtn" class="button" style="background-color: #9c27b0;">Copy FEN</button>
                 <button id="copyPgnBtn" class="button" style="background-color: #9c27b0;">Copy PGN</button>
+                <button id="analyzeBtn" class="button" style="background-color: #9c27b0;">Analyze with Engine</button>
             </div>
         </div>
         <div class="fen-input">
@@ -450,6 +451,19 @@
                 alert('Failed to copy PGN to clipboard');
             }
         });
+
+        document.getElementById('analyzeBtn').addEventListener('click', async () => {
+            try {
+                const fen = await game.fen();
+                const encodedFen = encodeURIComponent(fen);
+                const url = `https://lichess.org/analysis/standard/${encodedFen}`;
+                window.open(url, '_blank');
+            } catch (error) {
+                console.error('Error opening analysis board:', error);
+                alert('Failed to open lichess analysis board');
+            }
+        });
+
 
         document.getElementById('setFenBtn').addEventListener('click', () => {
             const fenInput = document.getElementById('fenInput');
