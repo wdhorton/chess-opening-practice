@@ -1,10 +1,10 @@
 <!DOCTYPE html>
 <html>
-<!-- Previous head content remains the same until the filters section -->
 <head>
     <title>Chess Opening Practice</title>
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/chessboard-js/1.0.0/chessboard-1.0.0.min.css" rel="stylesheet">
-    <!-- Vercel Web Analytics -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/chessground@9.1.1/assets/chessground.base.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/chessground@9.1.1/assets/chessground.brown.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/chessground@9.1.1/assets/chessground.cburnett.css">
     <script defer src="/_vercel/insights/script.js"></script>
     <style>
         .container {
@@ -19,6 +19,7 @@
         }
         .board {
             width: 500px;
+            height: 500px;
         }
         .moves-list {
             flex: 1;
@@ -90,8 +91,9 @@
             border: 1px solid #ccc;
             border-radius: 4px;
         }
-        .fen-input button {
-            background-color: #ff9800;
+        .button-group {
+            display: flex;
+            gap: 8px;
         }
         .filters {
             margin: 20px 0;
@@ -132,23 +134,11 @@
         .filter-option.active:hover {
             background: #879f73;
         }
-        .highlight-square {
-            box-shadow: inset 0 0 3px 3px yellow;
-        }
-        .button-group {
-            display: flex;
-            gap: 8px;
-        }
-        
-        .highlight-square {
-            box-shadow: inset 0 0 3px 3px yellow;
-        }
     </style>
 </head>
 <body>
     <div class="container">
         <h1>Chess Opening Practice</h1>
-
         <div id="status" class="info">Set up your starting position. You can play moves for both sides. Then click "Start Practice".</div>
         <div class="board-and-moves">
             <div id="board" class="board"></div>
@@ -167,7 +157,6 @@
             <input type="text" id="fenInput" placeholder="Enter FEN string" aria-label="FEN string input">
             <button id="setFenBtn" class="button">Set Position</button>
         </div>
-
                 <div class="filters">
             <div class="filter-section">
                 <h3>Time control</h3>
@@ -198,19 +187,84 @@
         </div>
     </div>
 
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/chess.js/0.10.3/chess.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/chessboard-js/1.0.0/chessboard-1.0.0.min.js"></script>
-    
-    <script>
-        let board = null;
+    <script type="module">
+        import { Chessground } from 'https://cdn.jsdelivr.net/npm/chessground@9.1.1/dist/chessground.js';
+
         let game = new Chess();
         let practicing = false;
         let playerColor = 'white';
         let movesDiv = document.getElementById('moves');
+        let cg = null;
 
+        // Utility functions for Chessground
+        function toDests(chess) {
+            const dests = new Map();
+            chess.SQUARES.forEach(s => {
+                const ms = chess.moves({square: s, verbose: true});
+                if (ms.length) dests.set(s, ms.map(m => m.to));
+            });
+            return dests;
+        }
 
-        // Add function to generate PGN with headers
+        function toColor(chess) {
+            return (chess.turn() === 'w') ? 'white' : 'black';
+        }
+
+        // Initialize the board
+        function initializeBoard() {
+            const config = {
+                fen: game.fen(),
+                movable: {
+                    color: practicing ? playerColor : 'both',
+                    free: false,
+                    dests: toDests(game),
+                    events: {
+                        after: onMove
+                    }
+                },
+                draggable: {
+                    showGhost: true
+                }
+            };
+
+            cg = Chessground(document.getElementById('board'), config);
+            updateStatus();
+            updateMovesList();
+        }
+
+        // Handle moves
+        function onMove(orig, dest) {
+            const move = game.move({
+                from: orig,
+                to: dest,
+                promotion: 'q' // Always promote to queen for simplicity
+            });
+
+            if (move) {
+                updateBoard();
+                updateMovesList();
+
+                if (practicing) {
+                    makeComputerMove();
+                }
+            }
+        }
+
+        // Update the board state
+        function updateBoard() {
+            cg.set({
+                fen: game.fen(),
+                turnColor: toColor(game),
+                movable: {
+                    color: practicing ? playerColor : 'both',
+                    dests: toDests(game)
+                }
+            });
+            updateStatus();
+        }
+
+        // Generate PGN
         function generatePGN() {
             const date = new Date().toISOString().split('T')[0];
             const headers = [
@@ -221,120 +275,10 @@
                 '[Black "Practice Partner"]',
                 '[Result "*"]'
             ];
-            
-            // Get the moves
-            const moves = game.pgn();
-            
-            // Combine headers and moves
-            return headers.join('\n') + '\n\n' + moves + ' *';
-        };
-
-        function initializeFilters() {
-            document.querySelectorAll('.filter-option').forEach(button => {
-                button.addEventListener('click', () => {
-                    button.classList.toggle('active');
-                });
-            });
+            return headers.join('\n') + '\n\n' + game.pgn() + ' *';
         }
 
-        function getActiveFilters() {
-            const speeds = Array.from(document.querySelectorAll('#timeControls .filter-option.active'))
-                .map(button => button.dataset.speed);
-            
-            const ratings = Array.from(document.querySelectorAll('#ratings .filter-option.active'))
-                .map(button => parseInt(button.dataset.rating));
-            
-            return {
-                speeds,
-                ratings
-            };
-        }
-
-        // Initialize board with click handlers
-        function initializeBoard() {
-            const config = {
-                draggable: true,
-                position: 'start',
-                orientation: 'white',
-                pieceTheme: 'https://chessboardjs.com/img/chesspieces/wikipedia/{piece}.png',
-                onDragStart: onDragStart,
-                onDrop: onDrop,
-                onSnapEnd: onSnapEnd,
-            };
-            board = Chessboard('board', config);
-            updateStatus();
-            updateMovesList();
-        }
-
-        // Handle square clicks
-        function onSquareClick(square) {
-            console.log("square click")
-            // Remove previous highlights
-            removeHighlights();
-
-            if (selectedSquare === null) {
-                console.log("in here")
-                // No square was selected - check if the clicked square has a piece that can move
-                const piece = game.get(square);
-                if (piece && (!practicing || piece.color === playerColor[0])) {
-                    console.log("clicked square")
-                    selectedSquare = square;
-                    highlightSquare(square);
-                }
-            } else {
-                // Attempt to make a move from the previously selected square
-                const move = game.move({
-                    from: selectedSquare,
-                    to: square,
-                    promotion: 'q' // Always promote to queen for simplicity
-                });
-
-                if (move === null) {
-                    // Invalid move - reset selection if clicked on a different square
-                    if (square !== selectedSquare) {
-                        selectedSquare = null;
-                        removeHighlights();
-                    }
-                } else {
-                    // Valid move
-                    selectedSquare = null;
-                    removeHighlights();
-                    board.position(game.fen());
-                    updateStatus();
-                    updateMovesList();
-
-                    if (practicing) {
-                        makeComputerMove();
-                    }
-                }
-            }
-        }
-
-        // Highlight a square
-        function highlightSquare(square) {
-            const squareEl = document.querySelector(`.square-${square}`);
-            if (squareEl) {
-                squareEl.classList.add('highlight-square');
-            }
-        }
-
-        // Remove all highlights
-        function removeHighlights() {
-            document.querySelectorAll('.highlight-square').forEach(el => {
-                el.classList.remove('highlight-square');
-            });
-        }
-
-        function onDragStart(source, piece, position, orientation) {
-            console.log("drag start")
-            if (practicing && piece.search(playerColor[0]) === -1) {
-                return false;
-            }
-            if (game.game_over()) return false;
-
-            return true;
-        }
-
+        // Update moves list
         function updateMovesList() {
             const moves = game.history({ verbose: true });
             let html = '';
@@ -351,27 +295,7 @@
             movesDiv.scrollTop = movesDiv.scrollHeight;
         }
 
-        function onDrop(source, target) {
-            const move = game.move({
-                from: source,
-                to: target,
-                promotion: 'q'
-            });
-
-            if (move === null) return 'snapback';
-
-            updateMovesList();
-
-            if (practicing) {
-                makeComputerMove();
-            }
-        }
-
-        function onSnapEnd() {
-            board.position(game.fen());
-            updateStatus();
-        }
-
+        // Make computer move
         async function makeComputerMove() {
             const fen = game.fen();
             const filters = getActiveFilters();
@@ -381,12 +305,10 @@
                     fen: fen
                 });
                 
-                // Add speed filters
                 filters.speeds.forEach(speed => {
                     params.append('speeds[]', speed);
                 });
 
-                // Add rating filters
                 filters.ratings.forEach(rating => {
                     params.append('ratings[]', rating);
                 });
@@ -409,17 +331,14 @@
                     }
 
                     if (selectedMove) {
-                        const move = selectedMove.san ? 
-                            game.move(selectedMove.san) :
-                            game.move({
-                                from: selectedMove.uci.substring(0, 2),
-                                to: selectedMove.uci.substring(2, 4),
-                                promotion: selectedMove.uci.length > 4 ? selectedMove.uci[4] : undefined
-                            });
+                        const move = game.move(selectedMove.san || {
+                            from: selectedMove.uci.substring(0, 2),
+                            to: selectedMove.uci.substring(2, 4),
+                            promotion: selectedMove.uci.length > 4 ? selectedMove.uci[4] : undefined
+                        });
                         
                         if (move) {
-                            board.position(game.fen());
-                            updateStatus();
+                            updateBoard();
                             updateMovesList();
                         }
                     }
@@ -428,6 +347,25 @@
                 console.error('Error fetching from Lichess API:', error);
                 document.getElementById('status').textContent = 'Error making computer move';
             }
+        }
+
+        // Filter handling
+        function initializeFilters() {
+            document.querySelectorAll('.filter-option').forEach(button => {
+                button.addEventListener('click', () => {
+                    button.classList.toggle('active');
+                });
+            });
+        }
+
+        function getActiveFilters() {
+            const speeds = Array.from(document.querySelectorAll('#timeControls .filter-option.active'))
+                .map(button => button.dataset.speed);
+            
+            const ratings = Array.from(document.querySelectorAll('#ratings .filter-option.active'))
+                .map(button => parseInt(button.dataset.rating));
+            
+            return { speeds, ratings };
         }
 
         function updateStatus(message) {
@@ -449,15 +387,16 @@
             statusDiv.className = 'info';
         }
 
+        // Event listeners
         document.getElementById('flipBoardBtn').addEventListener('click', () => {
-            board.flip();
+            cg.toggleOrientation();
             playerColor = playerColor === 'white' ? 'black' : 'white';
             updateStatus();
         });
 
         document.getElementById('startBtn').addEventListener('click', () => {
             practicing = true;
-            updateStatus();
+            updateBoard();
             if (game.turn() !== playerColor[0]) {
                 makeComputerMove();
             }
@@ -465,36 +404,50 @@
 
         document.getElementById('resetBtn').addEventListener('click', () => {
             game = new Chess();
-            board.start();
             practicing = false;
-            playerColor = board.orientation() === 'white' ? 'white' : 'black';
+            playerColor = cg.state.orientation;
+            
+            // Reset the board completely with a fresh configuration
+            cg.set({
+                fen: game.fen(),
+                lastMove: undefined,  // Clear last move highlight
+                movable: {
+                    color: 'both',
+                    dests: toDests(game)
+                },
+                selected: null,  // Clear any selected squares
+                highlight: {
+                    lastMove: true,
+                    check: true
+                }
+            });
+            
             updateStatus();
             updateMovesList();
         });
 
-        document.getElementById('copyPgnBtn').addEventListener('click', async () => {
-            const pgn = generatePGN();
-            try {
-                await navigator.clipboard.writeText(pgn);
-                const statusDiv = document.getElementById('status');
-                statusDiv.textContent = 'PGN copied to clipboard!';
-                setTimeout(() => updateStatus(), 2000);
-            } catch (err) {
-                console.error('Failed to copy PGN:', err);
-                alert('Failed to copy PGN to clipboard');
-            }
-        });
 
         document.getElementById('copyFenBtn').addEventListener('click', async () => {
-            const fen = game.fen();
             try {
-                await navigator.clipboard.writeText(fen);
+                await navigator.clipboard.writeText(game.fen());
                 const statusDiv = document.getElementById('status');
                 statusDiv.textContent = 'FEN copied to clipboard!';
                 setTimeout(() => updateStatus(), 2000);
             } catch (err) {
                 console.error('Failed to copy FEN:', err);
                 alert('Failed to copy FEN to clipboard');
+            }
+        });
+
+        document.getElementById('copyPgnBtn').addEventListener('click', async () => {
+            try {
+                await navigator.clipboard.writeText(generatePGN());
+                const statusDiv = document.getElementById('status');
+                statusDiv.textContent = 'PGN copied to clipboard!';
+                setTimeout(() => updateStatus(), 2000);
+            } catch (err) {
+                console.error('Failed to copy PGN:', err);
+                alert('Failed to copy PGN to clipboard');
             }
         });
 
@@ -506,11 +459,11 @@
                 const tempGame = new Chess();
                 if (tempGame.load(fen)) {
                     game = tempGame;
-                    board.position(fen);
                     practicing = false;
+                    updateBoard();
                     updateStatus('Position set from FEN');
                     updateMovesList();
-                    fenInput.value = '';
+                    fenInput.value = ''; // Clear input after successful set
                 } else {
                     throw new Error('Invalid FEN');
                 }
@@ -521,6 +474,7 @@
             }
         });
 
+        // Initialize everything
         window.addEventListener('load', () => {
             initializeBoard();
             initializeFilters();
