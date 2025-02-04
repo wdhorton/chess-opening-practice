@@ -1,0 +1,530 @@
+<!DOCTYPE html>
+<html>
+<!-- Previous head content remains the same until the filters section -->
+<head>
+    <title>Chess Opening Practice</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/chessboard-js/1.0.0/chessboard-1.0.0.min.css" rel="stylesheet">
+    <!-- Vercel Web Analytics -->
+    <script defer src="/_vercel/insights/script.js"></script>
+    <style>
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .board-and-moves {
+            display: flex;
+            gap: 20px;
+            margin: 20px 0;
+        }
+        .board {
+            width: 500px;
+        }
+        .moves-list {
+            flex: 1;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 4px;
+            min-height: 400px;
+            max-height: 500px;
+            overflow-y: auto;
+            font-family: "Courier New", monospace;
+            font-size: 14px;
+            line-height: 1.5;
+        }
+        .move-number {
+            color: #666;
+            margin-right: 5px;
+        }
+        .move {
+            margin-right: 10px;
+            font-weight: bold;
+        }
+        .controls {
+            margin: 20px 0;
+        }
+        .button {
+            background-color: #4CAF50;
+            border: none;
+            color: white;
+            padding: 10px 20px;
+            text-align: center;
+            text-decoration: none;
+            display: inline-block;
+            font-size: 16px;
+            margin: 4px 2px;
+            cursor: pointer;
+            border-radius: 4px;
+        }
+        .button:disabled {
+            background-color: #cccccc;
+            cursor: not-allowed;
+        }
+        #status {
+            margin: 10px 0;
+            padding: 10px;
+            border-radius: 4px;
+        }
+        .info {
+            background-color: #e7f3fe;
+            border-left: 6px solid #2196F3;
+        }
+        .success {
+            background-color: #dff0d8;
+            border-left: 6px solid #4CAF50;
+        }
+        .warning {
+            background-color: #fff3cd;
+            border-left: 6px solid #ffc107;
+        }
+        .fen-input {
+            margin: 20px 0;
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+        .fen-input input {
+            flex: 1;
+            padding: 8px;
+            font-family: monospace;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+        }
+        .fen-input button {
+            background-color: #ff9800;
+        }
+        .filters {
+            margin: 20px 0;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 4px;
+        }
+        .filter-section {
+            margin-bottom: 15px;
+        }
+        .filter-section h3 {
+            margin: 0 0 10px 0;
+            font-size: 16px;
+            color: #333;
+        }
+        .filter-options {
+            display: flex;
+            gap: 5px;
+            flex-wrap: wrap;
+        }
+        .filter-option {
+            padding: 8px 12px;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            cursor: pointer;
+            background: #fff;
+            font-size: 14px;
+            transition: all 0.2s;
+        }
+        .filter-option.active {
+            background: #98b982;
+            color: white;
+            border-color: #98b982;
+        }
+        .filter-option:hover {
+            background: #eee;
+        }
+        .filter-option.active:hover {
+            background: #879f73;
+        }
+        .highlight-square {
+            box-shadow: inset 0 0 3px 3px yellow;
+        }
+        .button-group {
+            display: flex;
+            gap: 8px;
+        }
+        
+        .highlight-square {
+            box-shadow: inset 0 0 3px 3px yellow;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Chess Opening Practice</h1>
+
+        <div id="status" class="info">Set up your starting position. You can play moves for both sides. Then click "Start Practice".</div>
+        <div class="board-and-moves">
+            <div id="board" class="board"></div>
+            <div id="moves" class="moves-list"></div>
+        </div>
+        <div class="controls">
+            <button id="startBtn" class="button">Start Practice</button>
+            <button id="flipBoardBtn" class="button">Flip Board</button>
+            <button id="resetBtn" class="button">Reset</button>
+            <div class="button-group">
+                <button id="copyFenBtn" class="button" style="background-color: #9c27b0;">Copy FEN</button>
+                <button id="copyPgnBtn" class="button" style="background-color: #9c27b0;">Copy PGN</button>
+            </div>
+        </div>
+        <div class="fen-input">
+            <input type="text" id="fenInput" placeholder="Enter FEN string" aria-label="FEN string input">
+            <button id="setFenBtn" class="button">Set Position</button>
+        </div>
+
+                <div class="filters">
+            <div class="filter-section">
+                <h3>Time control</h3>
+                <div class="filter-options" id="timeControls">
+                    <button class="filter-option" data-speed="ultraBullet">UltraBullet</button>
+                    <button class="filter-option" data-speed="bullet">Bullet</button>
+                    <button class="filter-option active" data-speed="blitz">Blitz</button>
+                    <button class="filter-option active" data-speed="rapid">Rapid</button>
+                    <button class="filter-option active" data-speed="classical">Classical</button>
+                    <button class="filter-option" data-speed="correspondence">Correspondence</button>
+                </div>
+            </div>
+            
+            <div class="filter-section">
+                <h3>Average rating</h3>
+                <div class="filter-options" id="ratings">
+                    <button class="filter-option" data-rating="0">0</button>
+                    <button class="filter-option active" data-rating="1000">1000</button>
+                    <button class="filter-option active" data-rating="1200">1200</button>
+                    <button class="filter-option active" data-rating="1400">1400</button>
+                    <button class="filter-option active" data-rating="1600">1600</button>
+                    <button class="filter-option active" data-rating="1800">1800</button>
+                    <button class="filter-option active" data-rating="2000">2000</button>
+                    <button class="filter-option active" data-rating="2200">2200</button>
+                    <button class="filter-option active" data-rating="2500">2500</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/chess.js/0.10.3/chess.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/chessboard-js/1.0.0/chessboard-1.0.0.min.js"></script>
+    
+    <script>
+        let board = null;
+        let game = new Chess();
+        let practicing = false;
+        let playerColor = 'white';
+        let movesDiv = document.getElementById('moves');
+
+
+        // Add function to generate PGN with headers
+        function generatePGN() {
+            const date = new Date().toISOString().split('T')[0];
+            const headers = [
+                '[Event "Chess Opening Practice"]',
+                '[Site "Chess Practice App"]',
+                '[Date "' + date + '"]',
+                '[White "Player"]',
+                '[Black "Practice Partner"]',
+                '[Result "*"]'
+            ];
+            
+            // Get the moves
+            const moves = game.pgn();
+            
+            // Combine headers and moves
+            return headers.join('\n') + '\n\n' + moves + ' *';
+        };
+
+        function initializeFilters() {
+            document.querySelectorAll('.filter-option').forEach(button => {
+                button.addEventListener('click', () => {
+                    button.classList.toggle('active');
+                });
+            });
+        }
+
+        function getActiveFilters() {
+            const speeds = Array.from(document.querySelectorAll('#timeControls .filter-option.active'))
+                .map(button => button.dataset.speed);
+            
+            const ratings = Array.from(document.querySelectorAll('#ratings .filter-option.active'))
+                .map(button => parseInt(button.dataset.rating));
+            
+            return {
+                speeds,
+                ratings
+            };
+        }
+
+        // Initialize board with click handlers
+        function initializeBoard() {
+            const config = {
+                draggable: true,
+                position: 'start',
+                orientation: 'white',
+                pieceTheme: 'https://chessboardjs.com/img/chesspieces/wikipedia/{piece}.png',
+                onDragStart: onDragStart,
+                onDrop: onDrop,
+                onSnapEnd: onSnapEnd,
+            };
+            board = Chessboard('board', config);
+            updateStatus();
+            updateMovesList();
+        }
+
+        // Handle square clicks
+        function onSquareClick(square) {
+            console.log("square click")
+            // Remove previous highlights
+            removeHighlights();
+
+            if (selectedSquare === null) {
+                console.log("in here")
+                // No square was selected - check if the clicked square has a piece that can move
+                const piece = game.get(square);
+                if (piece && (!practicing || piece.color === playerColor[0])) {
+                    console.log("clicked square")
+                    selectedSquare = square;
+                    highlightSquare(square);
+                }
+            } else {
+                // Attempt to make a move from the previously selected square
+                const move = game.move({
+                    from: selectedSquare,
+                    to: square,
+                    promotion: 'q' // Always promote to queen for simplicity
+                });
+
+                if (move === null) {
+                    // Invalid move - reset selection if clicked on a different square
+                    if (square !== selectedSquare) {
+                        selectedSquare = null;
+                        removeHighlights();
+                    }
+                } else {
+                    // Valid move
+                    selectedSquare = null;
+                    removeHighlights();
+                    board.position(game.fen());
+                    updateStatus();
+                    updateMovesList();
+
+                    if (practicing) {
+                        makeComputerMove();
+                    }
+                }
+            }
+        }
+
+        // Highlight a square
+        function highlightSquare(square) {
+            const squareEl = document.querySelector(`.square-${square}`);
+            if (squareEl) {
+                squareEl.classList.add('highlight-square');
+            }
+        }
+
+        // Remove all highlights
+        function removeHighlights() {
+            document.querySelectorAll('.highlight-square').forEach(el => {
+                el.classList.remove('highlight-square');
+            });
+        }
+
+        function onDragStart(source, piece, position, orientation) {
+            console.log("drag start")
+            if (practicing && piece.search(playerColor[0]) === -1) {
+                return false;
+            }
+            if (game.game_over()) return false;
+
+            return true;
+        }
+
+        function updateMovesList() {
+            const moves = game.history({ verbose: true });
+            let html = '';
+            for (let i = 0; i < moves.length; i++) {
+                if (i % 2 === 0) {
+                    html += `<span class="move-number">${Math.floor(i/2 + 1)}.</span>`;
+                }
+                html += `<span class="move">${moves[i].san}</span>`;
+                if (i % 2 === 1) {
+                    html += '<br>';
+                }
+            }
+            movesDiv.innerHTML = html;
+            movesDiv.scrollTop = movesDiv.scrollHeight;
+        }
+
+        function onDrop(source, target) {
+            const move = game.move({
+                from: source,
+                to: target,
+                promotion: 'q'
+            });
+
+            if (move === null) return 'snapback';
+
+            updateMovesList();
+
+            if (practicing) {
+                makeComputerMove();
+            }
+        }
+
+        function onSnapEnd() {
+            board.position(game.fen());
+            updateStatus();
+        }
+
+        async function makeComputerMove() {
+            const fen = game.fen();
+            const filters = getActiveFilters();
+            
+            try {
+                const params = new URLSearchParams({
+                    fen: fen
+                });
+                
+                // Add speed filters
+                filters.speeds.forEach(speed => {
+                    params.append('speeds[]', speed);
+                });
+
+                // Add rating filters
+                filters.ratings.forEach(rating => {
+                    params.append('ratings[]', rating);
+                });
+                
+                const response = await fetch(`https://explorer.lichess.ovh/lichess?${params.toString()}`);
+                const data = await response.json();
+
+                if (data.moves && data.moves.length > 0) {
+                    const totalGames = data.moves.reduce((sum, move) => sum + move.white + move.black + move.draws, 0);
+                    let random = Math.floor(Math.random() * totalGames);
+                    
+                    let selectedMove = null;
+                    for (const move of data.moves) {
+                        const moveGames = move.white + move.black + move.draws;
+                        if (random < moveGames) {
+                            selectedMove = move;
+                            break;
+                        }
+                        random -= moveGames;
+                    }
+
+                    if (selectedMove) {
+                        const move = selectedMove.san ? 
+                            game.move(selectedMove.san) :
+                            game.move({
+                                from: selectedMove.uci.substring(0, 2),
+                                to: selectedMove.uci.substring(2, 4),
+                                promotion: selectedMove.uci.length > 4 ? selectedMove.uci[4] : undefined
+                            });
+                        
+                        if (move) {
+                            board.position(game.fen());
+                            updateStatus();
+                            updateMovesList();
+                        }
+                    }
+                }
+            } catch (error) {
+                console.error('Error fetching from Lichess API:', error);
+                document.getElementById('status').textContent = 'Error making computer move';
+            }
+        }
+
+        function updateStatus(message) {
+            const statusDiv = document.getElementById('status');
+            if (message) {
+                statusDiv.textContent = message;
+            } else {
+                let status = '';
+                if (practicing) {
+                    status = `Practice mode: You are playing ${playerColor}`;
+                    if (game.in_check()) {
+                        status += ' - CHECK!';
+                    }
+                } else {
+                    status = 'Set up your starting position. You can play moves for both sides. Then click "Start Practice".';
+                }
+                statusDiv.textContent = status;
+            }
+            statusDiv.className = 'info';
+        }
+
+        document.getElementById('flipBoardBtn').addEventListener('click', () => {
+            board.flip();
+            playerColor = playerColor === 'white' ? 'black' : 'white';
+            updateStatus();
+        });
+
+        document.getElementById('startBtn').addEventListener('click', () => {
+            practicing = true;
+            updateStatus();
+            if (game.turn() !== playerColor[0]) {
+                makeComputerMove();
+            }
+        });
+
+        document.getElementById('resetBtn').addEventListener('click', () => {
+            game = new Chess();
+            board.start();
+            practicing = false;
+            playerColor = board.orientation() === 'white' ? 'white' : 'black';
+            updateStatus();
+            updateMovesList();
+        });
+
+        document.getElementById('copyPgnBtn').addEventListener('click', async () => {
+            const pgn = generatePGN();
+            try {
+                await navigator.clipboard.writeText(pgn);
+                const statusDiv = document.getElementById('status');
+                statusDiv.textContent = 'PGN copied to clipboard!';
+                setTimeout(() => updateStatus(), 2000);
+            } catch (err) {
+                console.error('Failed to copy PGN:', err);
+                alert('Failed to copy PGN to clipboard');
+            }
+        });
+
+        document.getElementById('copyFenBtn').addEventListener('click', async () => {
+            const fen = game.fen();
+            try {
+                await navigator.clipboard.writeText(fen);
+                const statusDiv = document.getElementById('status');
+                statusDiv.textContent = 'FEN copied to clipboard!';
+                setTimeout(() => updateStatus(), 2000);
+            } catch (err) {
+                console.error('Failed to copy FEN:', err);
+                alert('Failed to copy FEN to clipboard');
+            }
+        });
+
+        document.getElementById('setFenBtn').addEventListener('click', () => {
+            const fenInput = document.getElementById('fenInput');
+            const fen = fenInput.value.trim();
+            
+            try {
+                const tempGame = new Chess();
+                if (tempGame.load(fen)) {
+                    game = tempGame;
+                    board.position(fen);
+                    practicing = false;
+                    updateStatus('Position set from FEN');
+                    updateMovesList();
+                    fenInput.value = '';
+                } else {
+                    throw new Error('Invalid FEN');
+                }
+            } catch (err) {
+                console.error('Invalid FEN:', err);
+                updateStatus('Invalid FEN string');
+                document.getElementById('status').className = 'warning';
+            }
+        });
+
+        window.addEventListener('load', () => {
+            initializeBoard();
+            initializeFilters();
+        });
+    </script>
+</body>
+</html>
