@@ -205,6 +205,9 @@
         let playerColor = 'white';
         let movesDiv = document.getElementById('moves');
         let cg = null;
+        let appliedMoves = [];
+        let undoneMoves = [];
+
 
         // Utility functions for Chessground
         function toDests(chess) {
@@ -251,6 +254,8 @@
             });
 
             if (move) {
+                appliedMoves.push(move);
+                undoneMoves = []; // Clear redo stack on a new move
                 updateBoard();
                 updateMovesList();
 
@@ -495,7 +500,7 @@
                 document.getElementById('status').className = 'warning';
             }
         });
-        
+
         document.getElementById('backBtn').addEventListener('click', () => {
           if (appliedMoves.length > 0) {
             // Undo the last move and push it onto the redo stack
