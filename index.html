@@ -142,7 +142,15 @@
         <div id="status" class="info">Set up your starting position. You can play moves for both sides. Then click "Start Practice".</div>
         <div class="board-and-moves">
             <div id="board" class="board"></div>
-            <div id="moves" class="moves-list"></div>
+            <div class="moves-list" id="movesContainer">
+              <div id="moveNavigation" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px;">
+                <button id="backBtn" class="button" title="Undo Move">&#8592;</button>
+                <span>Moves Played</span>
+                <button id="forwardBtn" class="button" title="Redo Move">&#8594;</button>
+              </div>
+              <div id="moves"></div>
+            </div>
+
         </div>
         <div class="controls">
             <button id="startBtn" class="button">Start Practice</button>
@@ -197,6 +205,9 @@
         let playerColor = 'white';
         let movesDiv = document.getElementById('moves');
         let cg = null;
+        let appliedMoves = [];
+        let undoneMoves = [];
+
 
         // Utility functions for Chessground
         function toDests(chess) {
@@ -243,6 +254,8 @@
             });
 
             if (move) {
+                appliedMoves.push(move);
+                undoneMoves = []; // Clear redo stack on a new move
                 updateBoard();
                 updateMovesList();
 
@@ -487,6 +500,35 @@
                 document.getElementById('status').className = 'warning';
             }
         });
+
+        document.getElementById('backBtn').addEventListener('click', () => {
+          if (appliedMoves.length > 0) {
+            // Undo the last move and push it onto the redo stack
+            const move = game.undo();
+            undoneMoves.push(move);
+            appliedMoves.pop();
+            updateBoard();
+            updateMovesList();
+          }
+        });
+
+        document.getElementById('forwardBtn').addEventListener('click', () => {
+          if (undoneMoves.length > 0) {
+            // Reapply the move details stored in undoneMoves
+            const move = undoneMoves.pop();
+            const result = game.move({
+              from: move.from,
+              to: move.to,
+              promotion: move.promotion || 'q'
+            });
+            if (result) {
+              appliedMoves.push(result);
+              updateBoard();
+              updateMovesList();
+            }
+          }
+        });
+
 
         // Initialize everything
         window.addEventListener('load', () => {
