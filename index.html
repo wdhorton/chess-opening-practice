@@ -465,17 +465,23 @@
             }
         });
 
-        document.getElementById('analyzeBtn').addEventListener('click', async () => {
-            try {
-                const fen = await game.fen();
-                const encodedFen = encodeURIComponent(fen);
-                const url = `https://lichess.org/analysis/standard/${encodedFen}`;
-                window.open(url, '_blank');
-            } catch (error) {
-                console.error('Error opening analysis board:', error);
-                alert('Failed to open lichess analysis board');
+        document.getElementById('analyzeBtn').addEventListener('click', () => {
+          try {
+            const moves = game.history(); // e.g. ["e4", "e5", "Nf3", "Nc6", "Bc4", "Bc5", "Bxf7+"]
+            if (!moves.length) {
+              alert('No moves played yet.');
+              return;
             }
+            // Join moves with underscores to form the PGN part of the URL.
+            const pgnMoves = moves.join('_');
+            const url = `https://lichess.org/analysis/pgn/${encodeURIComponent(pgnMoves)}`;
+            window.open(url, '_blank');
+          } catch (error) {
+            console.error('Error generating PGN:', error);
+            alert('Failed to generate PGN for analysis.');
+          }
         });
+
 
 
         document.getElementById('setFenBtn').addEventListener('click', () => {
