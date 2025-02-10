@@ -140,6 +140,8 @@
     <div class="container">
         <h1>Chess Opening Practice</h1>
         <div id="status" class="info">Set up your starting position. You can play moves for both sides. Then click "Start Practice".</div>
+        <div id="gamesCount" style="margin-top:10px; font-weight:bold;"></div>
+        <div id="score" style="margin-top: 10px; font-weight: bold;"></div>
         <div class="board-and-moves">
             <div id="board" class="board"></div>
             <div class="moves-list" id="movesContainer">
@@ -352,6 +354,19 @@
                         });
                         
                         if (move) {
+                            // get total games in db with move that will be played as well as score from player's color
+                            const totalGames = selectedMove.white + selectedMove.black + selectedMove.draws;
+                            let score;
+                            if (playerColor === 'white') {
+                                score = (selectedMove.white + 0.5 * selectedMove.draws) / totalGames;
+                            } else {
+                                score = (selectedMove.black + 0.5 * selectedMove.draws) / totalGames;
+                            }
+                            const scorePercent = (score * 100).toFixed(1);
+                            document.getElementById('score').textContent =
+                                `There are ${totalGames.toLocaleString()} games with this position using your filters. ` +
+                                `${playerColor.charAt(0).toUpperCase() + playerColor.slice(1)} scored ${scorePercent}% from this position.`;
+
                             updateBoard();
                             updateMovesList();
                         }
@@ -438,6 +453,11 @@
             
             updateStatus();
             updateMovesList();
+
+            // Reset the total games and score text.
+            document.getElementById('gamesCount').textContent = '';
+            document.getElementById('score').textContent = '';
+
         });
 
 
