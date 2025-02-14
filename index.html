@@ -134,6 +134,68 @@
         .filter-option.active:hover {
             background: #879f73;
         }
+        .repertoire-checker {
+            margin: 20px 0;
+            padding: 15px;
+            background: #f8f9fa;
+            border-radius: 4px;
+        }
+
+        .upload-section {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+
+        .file-input {
+            flex: 1;
+        }
+
+        .auto-check-section {
+            margin: 10px 0;
+        }
+
+        .valid-moves {
+            margin-top: 10px;
+        }
+
+        .move-tag {
+            display: inline-block;
+            padding: 4px 8px;
+            margin: 2px;
+            background: white;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+        }
+
+        .move-status {
+            margin-top: 10px;
+            padding: 8px;
+            border-radius: 4px;
+        }
+
+        .move-status.valid {
+            background-color: #dff0d8;
+            border: 1px solid #d6e9c6;
+            color: #3c763d;
+        }
+
+        .move-status.invalid {
+            background-color: #f2dede;
+            border: 1px solid #ebccd1;
+            color: #a94442;
+        }
+        .upload-row {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+
+        .upload-label {
+            min-width: 150px;
+            font-weight: 500;
+        }
     </style>
 </head>
 <body>
@@ -142,6 +204,21 @@
         <div id="status" class="info">Set up your starting position. You can play moves for both sides. Then click "Start Practice".</div>
         <div id="gamesCount" style="margin-top:10px; font-weight:bold;"></div>
         <div id="score" style="margin-top: 10px; font-weight: bold;"></div>
+        <div class="repertoire-checker">
+            <div class="upload-section">
+                <div class="upload-row">
+                    <span class="upload-label">Upload Repertoire PGN:</span>
+                    <input type="file" id="pgnFile" accept=".pgn" class="file-input">
+                </div>
+                <button id="checkMovesBtn" class="button" disabled>Check Moves</button>
+            </div>
+            <div class="auto-check-section">
+                <input type="checkbox" id="autoCheckMoves" class="checkbox-input">
+                <label for="autoCheckMoves">Auto-check moves</label>
+            </div>
+            <div id="validMoves" class="valid-moves"></div>
+            <div id="moveStatus" class="move-status"></div>
+        </div>
         <div class="board-and-moves">
             <div id="board" class="board"></div>
             <div class="moves-list" id="movesContainer">
@@ -152,7 +229,6 @@
               </div>
               <div id="moves"></div>
             </div>
-
         </div>
         <div class="controls">
             <button id="startBtn" class="button">Start Practice</button>
@@ -168,7 +244,7 @@
             <input type="text" id="fenInput" placeholder="Enter FEN string" aria-label="FEN string input">
             <button id="setFenBtn" class="button">Set Position</button>
         </div>
-                <div class="filters">
+        <div class="filters">
             <div class="filter-section">
                 <h3>Time control</h3>
                 <div class="filter-options" id="timeControls">
@@ -199,6 +275,7 @@
     </div>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/chess.js/0.10.3/chess.min.js"></script>
+    <script src="https://unpkg.com/@mliebelt/pgn-parser@1.4.15/lib/index.umd.js"></script>
     <script type="module">
         import { Chessground } from 'https://cdn.jsdelivr.net/npm/chessground@9.1.1/dist/chessground.js';
 
@@ -561,6 +638,176 @@
             initializeBoard();
             initializeFilters();
         });
+
+        // PGN Checker functionality
+        let fenMoveMap = {};
+        let autoCheckEnabled = false;
+
+        // Normalize FEN (only position and turn)
+        function normalizeFen(fen) {
+            const [layout, turn] = fen.split(' ');
+            return `${layout} ${turn}`;
+        }
+
+        // Build lookup map from FEN to valid moves
+        function buildFenMoveMap(pgn) {
+            const games = PgnParser.parse(pgn);
+            const fenMap = {};
+
+            function traverseMoves(moves, board) {
+                for (const move of moves) {
+                    const currentFen = normalizeFen(board.fen());
+                    if (!fenMap[currentFen]) {
+                        fenMap[currentFen] = new Set();
+                    }
+                    fenMap[currentFen].add(move.notation.notation);
+
+                    // Handle variations
+                    if (move.variations && move.variations.length) {
+                        for (const variation of move.variations) {
+                            const boardClone = new Chess(board.fen());
+                            traverseMoves(variation, boardClone);
+                        }
+                    }
+
+                    const san = move.notation.notation;
+                    const result = board.move(san);
+                    if (!result) {
+                        console.error(`Illegal move encountered: ${san} ${board.fen()}`);
+                        continue;
+                    }
+                }
+            }
+
+            for (const game of games) {
+                const chess = new Chess();
+                if (game.tags && game.tags.FEN) {
+                    chess.load(game.tags.FEN);
+                }
+                traverseMoves(game.moves, chess);
+            }
+
+            // Convert Sets to Arrays
+            return Object.fromEntries(
+                Object.entries(fenMap).map(([fen, moveSet]) => [fen, Array.from(moveSet)])
+            );
+        }
+
+        // Handle PGN file upload
+        document.getElementById('pgnFile').addEventListener('change', (event) => {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                try {
+                    fenMoveMap = buildFenMoveMap(e.target.result);
+                    document.getElementById('checkMovesBtn').disabled = false;
+                    document.getElementById('moveStatus').textContent = `Repertoire loaded successfully: ${Object.keys(fenMoveMap).length} positions found`;
+                    document.getElementById('moveStatus').className = 'move-status valid';
+                } catch (error) {
+                    console.error('Error parsing PGN:', error);
+                    document.getElementById('moveStatus').textContent = 'Error loading PGN file';
+                    document.getElementById('moveStatus').className = 'move-status invalid';
+                }
+            };
+            reader.readAsText(file);
+        });
+
+        // Handle auto-check toggle
+        document.getElementById('autoCheckMoves').addEventListener('change', (event) => {
+            autoCheckEnabled = event.target.checked;
+        });
+
+        // Check moves for current position
+        function checkMoves() {
+            const currentFen = normalizeFen(game.fen());
+            const validMoves = fenMoveMap[currentFen] || [];
+            
+            const validMovesDiv = document.getElementById('validMoves');
+            validMovesDiv.innerHTML = '';
+            
+            if (validMoves.length > 0) {
+                const header = document.createElement('div');
+                header.textContent = 'Valid moves from this position:';
+                header.style.marginBottom = '8px';
+                validMovesDiv.appendChild(header);
+                
+                validMoves.forEach(move => {
+                    const moveTag = document.createElement('span');
+                    moveTag.className = 'move-tag';
+                    moveTag.textContent = move;
+                    validMovesDiv.appendChild(moveTag);
+                });
+            } else {
+                validMovesDiv.textContent = 'No moves found in repertoire for this position';
+            }
+            
+            return validMoves;
+        }
+
+        // Check if a move is valid
+        function isValidMove(move, prevFen) {
+            const normalizedFen = normalizeFen(prevFen);
+            const validMoves = fenMoveMap[normalizedFen] || [];
+            return validMoves.includes(move.san);
+        }
+
+
+        // Modify the existing onMove function
+        const originalOnMove = onMove;
+        onMove = function(orig, dest) {
+            // Check if it's player's move before making the move
+            // During practice: white's turn and player is white, or black's turn and player is black
+            // Outside practice: always true
+            const isPlayerMove = !practicing || (game.turn() === 'w' && playerColor === 'white') || 
+                                (game.turn() === 'b' && playerColor === 'black');
+            
+            const prevFen = game.fen()
+            const move = game.move({
+                from: orig,
+                to: dest,
+                promotion: 'q'
+            });
+
+            if (move) {
+                appliedMoves.push(move);
+                undoneMoves = [];
+                
+                // Check if move is in repertoire when auto-check is enabled and it's player's move
+                if (isPlayerMove && autoCheckEnabled && Object.keys(fenMoveMap).length > 0) {
+                    const moveStatus = document.getElementById('moveStatus');
+                    if (isValidMove(move, prevFen)) {
+                        moveStatus.textContent = 'Move is in your repertoire';
+                        moveStatus.className = 'move-status valid';
+                    } else {
+                        moveStatus.textContent = 'Move is not in your repertoire';
+                        moveStatus.className = 'move-status invalid';
+                    }
+                }
+
+                updateBoard();
+                updateMovesList();
+
+                if (practicing) {
+                    makeComputerMove();
+                }
+            }
+        };
+
+        // Add click handler for check moves button
+        document.getElementById('checkMovesBtn').addEventListener('click', checkMoves);
+
+        // Modify the reset button handler to clear move status
+        const originalResetHandler = document.getElementById('resetBtn').onclick;
+        document.getElementById('resetBtn').onclick = function() {
+            if (originalResetHandler) {
+                originalResetHandler.call(this);
+            }
+            document.getElementById('validMoves').innerHTML = '';
+            document.getElementById('moveStatus').textContent = '';
+            document.getElementById('moveStatus').className = 'move-status';
+        };
     </script>
 </body>
 </html>
