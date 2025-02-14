@@ -216,6 +216,7 @@
             color: #666;
             margin-right: 5px;
         }
+
         .move {
             margin-right: 10px;
             font-weight: bold;
@@ -249,6 +250,93 @@
             border-radius: var(--border-radius);
         }
 
+        .saved-positions {
+            background: var(--background-light);
+            border-radius: var(--border-radius);
+            padding: var(--spacing-md);
+            margin: var(--spacing-md) 0;
+        }
+
+        .saved-positions h3 {
+            margin-bottom: var(--spacing-md);
+            color: #2c3e50;
+        }
+
+        .positions-list {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .position-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.75rem;
+            background: white;
+            border: 1px solid #ddd;
+            border-radius: var(--border-radius);
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+
+        .position-item:hover {
+            background-color: #f0f0f0;
+        }
+
+        .position-name {
+            font-weight: 500;
+        }
+
+        .delete-position {
+            background: #dc3545;
+            color: white;
+            border: none;
+            padding: 0.25rem 0.5rem;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        .delete-position:hover {
+            background: #c82333;
+        }
+
+        .position-orientation {
+            font-size: 0.9em;
+            color: #666;
+            margin-left: 0.5rem;
+        }
+
+        /* New sampling controls styles */
+        .sampling-controls {
+            padding: var(--spacing-sm);
+        }
+
+        .control-group {
+            display: flex;
+            align-items: center;
+            gap: var(--spacing-sm);
+            margin-bottom: var(--spacing-sm);
+        }
+
+        .control-group label {
+            min-width: 120px;
+            font-weight: 500;
+        }
+
+        .control-group input[type="range"] {
+            flex: 1;
+            min-width: 100px;
+        }
+
+        .control-group input[type="number"] {
+            width: 80px;
+            padding: 4px 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+
+        /* Media queries */
         @media (max-width: 768px) {
             .container {
                 padding: var(--spacing-sm);
@@ -305,61 +393,7 @@
             h1 {
                 color: #fff;
             }
-        }
 
-        .saved-positions {
-            background: var(--background-light);
-            border-radius: var(--border-radius);
-            padding: var(--spacing-md);
-            margin: var(--spacing-md) 0;
-        }
-
-        .saved-positions h3 {
-            margin-bottom: var(--spacing-md);
-            color: #2c3e50;
-        }
-
-        .positions-list {
-            display: flex;
-            flex-direction: column;
-            gap: 0.5rem;
-        }
-
-        .position-item {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 0.75rem;
-            background: white;
-            border: 1px solid #ddd;
-            border-radius: var(--border-radius);
-            cursor: pointer;
-            transition: background-color 0.2s;
-        }
-
-        .position-item:hover {
-            background-color: #f0f0f0;
-        }
-
-        .position-name {
-            font-weight: 500;
-        }
-
-        .delete-position {
-            background: #dc3545;
-            color: white;
-            border: none;
-            padding: 0.25rem 0.5rem;
-            border-radius: 4px;
-            cursor: pointer;
-        }
-
-        .delete-position:hover {
-            background: #c82333;
-        }
-
-        /* Dark mode support */
-        @media (prefers-color-scheme: dark) {
             .position-item {
                 background: #333;
                 border-color: #444;
@@ -368,12 +402,16 @@
             .position-item:hover {
                 background: #404040;
             }
-        }
 
-        .position-orientation {
-            font-size: 0.9em;
-            color: #666;
-            margin-left: 0.5rem;
+            .control-group input[type="number"] {
+                background: #333;
+                border-color: #444;
+                color: #fff;
+            }
+
+            #moveNavigation {
+                background: #333;
+            }
         }
     </style>
 </head>
@@ -426,6 +464,21 @@
         </div>
         <div class="filters">
             <div class="filter-section">
+                <h3>Move Sampling Controls</h3>
+                <div class="sampling-controls">
+                    <div class="control-group">
+                        <label for="topP">Top P (0-1):</label>
+                        <input type="range" id="topPSlider" min="0" max="1" step="0.01" value="1">
+                        <input type="number" id="topPInput" min="0" max="1" step="0.01" value="1">
+                    </div>
+                    <div class="control-group">
+                        <label for="topK">Top K (moves):</label>
+                        <input type="number" id="topKInput" min="1" step="1" value="999">
+                    </div>
+                </div>
+            </div>
+
+            <div class="filter-section">
                 <h3>Time control</h3>
                 <div class="filter-options" id="timeControls">
                     <button class="filter-option" data-speed="ultraBullet">UltraBullet</button>
@@ -473,6 +526,22 @@
         let appliedMoves = [];
         let undoneMoves = [];
 
+        function syncTopPControls() {
+            const slider = document.getElementById('topPSlider');
+            const input = document.getElementById('topPInput');
+            
+            slider.addEventListener('input', (e) => {
+                input.value = e.target.value;
+            });
+            
+            input.addEventListener('input', (e) => {
+                let value = parseFloat(e.target.value);
+                if (value < 0) value = 0;
+                if (value > 1) value = 1;
+                slider.value = value;
+                input.value = value;
+            });
+        }
 
         // Utility functions for Chessground
         function toDests(chess) {
@@ -595,17 +664,47 @@
                 const data = await response.json();
 
                 if (data.moves && data.moves.length > 0) {
-                    const totalGames = data.moves.reduce((sum, move) => sum + move.white + move.black + move.draws, 0);
-                    let random = Math.floor(Math.random() * totalGames);
+                    const topP = parseFloat(document.getElementById('topPInput').value);
+                    const topK = parseInt(document.getElementById('topKInput').value);
+                    console.log(topK)
                     
-                    let selectedMove = null;
-                    for (const move of data.moves) {
+                    // Calculate total games for all moves
+                    const totalGames = data.moves.reduce((sum, move) => sum + move.white + move.black + move.draws, 0);
+                    
+                    // Sort moves by frequency and add probability info
+                    const movesWithProb = data.moves.map(move => {
                         const moveGames = move.white + move.black + move.draws;
-                        if (random < moveGames) {
+                        return {
+                            ...move,
+                            probability: moveGames / totalGames
+                        };
+                    }).sort((a, b) => b.probability - a.probability);
+                    
+                    // Apply top-k filter
+                    let filteredMoves = movesWithProb.slice(0, topK);
+                    
+                    // Apply top-p filter
+                    let cumProb = 0;
+                    filteredMoves = filteredMoves.filter(move => {
+                        cumProb += move.probability;
+                        return cumProb <= topP;
+                    });
+                    
+                    // Renormalize probabilities
+                    const filteredTotal = filteredMoves.reduce((sum, move) => sum + move.probability, 0);
+                    filteredMoves.forEach(move => move.probability /= filteredTotal);
+                    
+                    // Select a move based on the filtered probabilities
+                    let random = Math.random();
+                    let selectedMove = null;
+                    let cumulative = 0;
+                    
+                    for (const move of filteredMoves) {
+                        cumulative += move.probability;
+                        if (random <= cumulative) {
                             selectedMove = move;
                             break;
                         }
-                        random -= moveGames;
                     }
 
                     if (selectedMove) {
@@ -913,6 +1012,7 @@
             loadSavedPositions();
             initializeBoard();
             initializeFilters();
+            syncTopPControls();
         });
 
         // PGN Checker functionality
