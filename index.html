@@ -746,14 +746,6 @@
             return validMoves;
         }
 
-        // Check if a move is valid
-        function isValidMove(move, prevFen) {
-            const normalizedFen = normalizeFen(prevFen);
-            const validMoves = fenMoveMap[normalizedFen] || [];
-            return validMoves.includes(move.san);
-        }
-
-
         // Modify the existing onMove function
         const originalOnMove = onMove;
         onMove = function(orig, dest) {
@@ -776,12 +768,14 @@
                 
                 // Check if move is in repertoire when auto-check is enabled and it's player's move
                 if (isPlayerMove && autoCheckEnabled && Object.keys(fenMoveMap).length > 0) {
+                    const normalizedFen = normalizeFen(prevFen);
+                    const validMoves = fenMoveMap[normalizedFen] || [];
                     const moveStatus = document.getElementById('moveStatus');
-                    if (isValidMove(move, prevFen)) {
+                    if (validMoves.includes(move.san)) {
                         moveStatus.textContent = 'Move is in your repertoire';
                         moveStatus.className = 'move-status valid';
                     } else {
-                        moveStatus.textContent = 'Move is not in your repertoire';
+                        moveStatus.textContent = `Move is not in your repertoire. Valid moves were: ${validMoves}`;
                         moveStatus.className = 'move-status invalid';
                     }
                 }
