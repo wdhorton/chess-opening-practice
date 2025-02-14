@@ -565,13 +565,69 @@
             }
         }
 
-        // Filter handling
+        // Save filter selections to localStorage
+        function saveFilters() {
+            const speeds = Array.from(document.querySelectorAll('#timeControls .filter-option'))
+                .map(button => ({
+                    speed: button.dataset.speed,
+                    active: button.classList.contains('active')
+                }));
+            
+            const ratings = Array.from(document.querySelectorAll('#ratings .filter-option'))
+                .map(button => ({
+                    rating: button.dataset.rating,
+                    active: button.classList.contains('active')
+                }));
+            
+            localStorage.setItem('chessFilters', JSON.stringify({
+                speeds,
+                ratings
+            }));
+        }
+
+        // Load filter selections from localStorage
+        function loadFilters() {
+            const savedFilters = localStorage.getItem('chessFilters');
+            if (!savedFilters) return;
+            
+            const filters = JSON.parse(savedFilters);
+            
+            // Restore speed filters
+            filters.speeds.forEach(speed => {
+                const button = document.querySelector(`#timeControls .filter-option[data-speed="${speed.speed}"]`);
+                if (button) {
+                    if (speed.active) {
+                        button.classList.add('active');
+                    } else {
+                        button.classList.remove('active');
+                    }
+                }
+            });
+            
+            // Restore rating filters
+            filters.ratings.forEach(rating => {
+                const button = document.querySelector(`#ratings .filter-option[data-rating="${rating.rating}"]`);
+                if (button) {
+                    if (rating.active) {
+                        button.classList.add('active');
+                    } else {
+                        button.classList.remove('active');
+                    }
+                }
+            });
+        }
+
+        // Modify filter initialization to include storage functionality
         function initializeFilters() {
             document.querySelectorAll('.filter-option').forEach(button => {
                 button.addEventListener('click', () => {
                     button.classList.toggle('active');
+                    saveFilters(); // Save filters after each change
                 });
             });
+            
+            // Load saved filters when initializing
+            loadFilters();
         }
 
         function getActiveFilters() {
