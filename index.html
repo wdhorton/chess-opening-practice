@@ -306,6 +306,75 @@
                 color: #fff;
             }
         }
+
+        .saved-positions {
+            background: var(--background-light);
+            border-radius: var(--border-radius);
+            padding: var(--spacing-md);
+            margin: var(--spacing-md) 0;
+        }
+
+        .saved-positions h3 {
+            margin-bottom: var(--spacing-md);
+            color: #2c3e50;
+        }
+
+        .positions-list {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+
+        .position-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.75rem;
+            background: white;
+            border: 1px solid #ddd;
+            border-radius: var(--border-radius);
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+
+        .position-item:hover {
+            background-color: #f0f0f0;
+        }
+
+        .position-name {
+            font-weight: 500;
+        }
+
+        .delete-position {
+            background: #dc3545;
+            color: white;
+            border: none;
+            padding: 0.25rem 0.5rem;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        .delete-position:hover {
+            background: #c82333;
+        }
+
+        /* Dark mode support */
+        @media (prefers-color-scheme: dark) {
+            .position-item {
+                background: #333;
+                border-color: #444;
+            }
+            
+            .position-item:hover {
+                background: #404040;
+            }
+        }
+
+        .position-orientation {
+            font-size: 0.9em;
+            color: #666;
+            margin-left: 0.5rem;
+        }
     </style>
 </head>
 <body>
@@ -349,6 +418,7 @@
                 <button id="copyPgnBtn" class="button" style="background-color: #9c27b0;">Copy PGN</button>
                 <button id="analyzeBtn" class="button" style="background-color: #9c27b0;">Analyze with Engine</button>
             </div>
+            <button id="savePositionBtn" class="button">Save Position</button>
         </div>
         <div class="fen-input">
             <input type="text" id="fenInput" placeholder="Enter FEN string" aria-label="FEN string input">
@@ -382,6 +452,12 @@
                 </div>
             </div>
         </div>
+        <div class="saved-positions">
+            <h3>Saved Positions</h3>
+            <div class="positions-list" id="positionsList">
+                <!-- Saved positions will be inserted here -->
+            </div>
+        </div>        
     </div>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/chess.js/0.10.3/chess.min.js"></script>
@@ -801,6 +877,7 @@
 
         // Initialize everything
         window.addEventListener('load', () => {
+            loadSavedPositions();
             initializeBoard();
             initializeFilters();
         });
@@ -968,6 +1045,120 @@
             document.getElementById('moveStatus').textContent = '';
             document.getElementById('moveStatus').className = 'move-status';
         };
+
+        // Save/Load Positions functionality
+        let savedPositions = [];
+
+        // Load saved positions from localStorage
+        function loadSavedPositions() {
+            const saved = localStorage.getItem('chessPositions');
+            if (saved) {
+                savedPositions = JSON.parse(saved);
+                updatePositionsList();
+            }
+        }
+
+        // Save positions to localStorage
+        function savePositionsToStorage() {
+            localStorage.setItem('chessPositions', JSON.stringify(savedPositions));
+        }
+
+        // Save current position
+        function saveCurrentPosition() {
+            const name = prompt('Enter a name for this position:');
+            if (!name) return;
+            
+            const position = {
+                name: name,
+                fen: game.fen(),
+                pgn: game.pgn(),
+                moves: game.history(),
+                orientation: cg.state.orientation  // Save the current board orientation
+            };
+            
+            savedPositions.push(position);
+            savePositionsToStorage();
+            updatePositionsList();
+        }
+
+        // Load a position
+        function loadPosition(position) {
+            game = new Chess();
+            
+            // First try to load from PGN
+            try {
+                game.load_pgn(position.pgn);
+            } catch (e) {
+                // If PGN fails, try loading from FEN
+                try {
+                    game.load(position.fen);
+                } catch (err) {
+                    console.error('Error loading position:', err);
+                    alert('Error loading position');
+                    return;
+                }
+            }
+            
+            practicing = false;
+            
+            // Set orientation before updating board
+            if (position.orientation) {
+                cg.set({ orientation: position.orientation });
+                playerColor = position.orientation;  // Update playerColor to match orientation
+            }
+            
+            updateBoard();
+            updateMovesList();
+            updateStatus('Position loaded: ' + position.name);
+        }
+
+        // Update the positions list in the UI to show orientation
+        function updatePositionsList() {
+            const positionsList = document.getElementById('positionsList');
+            positionsList.innerHTML = '';
+            
+            if (savedPositions.length === 0) {
+                positionsList.innerHTML = '<div class="position-item">No saved positions yet</div>';
+                return;
+            }
+            
+            savedPositions.forEach((position, index) => {
+                const item = document.createElement('div');
+                item.className = 'position-item';
+                item.innerHTML = `
+                    <span class="position-name">
+                        ${position.name}
+                        <span class="position-orientation">(${position.orientation})</span>
+                    </span>
+                    <div>
+                        <button class="delete-position" data-index="${index}">Delete</button>
+                    </div>
+                `;
+                
+                // Add click handler to load the position
+                item.addEventListener('click', (e) => {
+                    if (!e.target.classList.contains('delete-position')) {
+                        loadPosition(position);
+                    }
+                });
+                
+                positionsList.appendChild(item);
+            });
+            
+            // Add delete handlers
+            document.querySelectorAll('.delete-position').forEach(button => {
+                button.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    const index = parseInt(button.dataset.index);
+                    savedPositions.splice(index, 1);
+                    savePositionsToStorage();
+                    updatePositionsList();
+                });
+            });
+        }
+
+        // Add event listener for save position button
+        document.getElementById('savePositionBtn').addEventListener('click', saveCurrentPosition);
     </script>
 </body>
 </html>
