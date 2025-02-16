@@ -6,6 +6,14 @@
       "use": "@vercel/static"
     },
     {
+      "src": "*.css",
+      "use": "@vercel/static"
+    },
+    {
+      "src": "*.js",
+      "use": "@vercel/static"
+    },
+    {
       "src": "robots.txt",
       "use": "@vercel/static"
     },
@@ -16,16 +24,24 @@
   ],
   "routes": [
     {
+      "src": "/styles.css",
+      "dest": "/styles.css"
+    },
+    {
+      "src": "/script.js",
+      "dest": "/script.js"
+    },
+    {
+      "src": "/",
+      "dest": "/index.html"
+    },
+    {
       "src": "/robots.txt",
       "dest": "/robots.txt"
     },
     {
       "src": "/sitemap.xml",
       "dest": "/sitemap.xml"
-    },
-    {
-      "src": "/",
-      "dest": "/index.html"
     }
   ]
 }
