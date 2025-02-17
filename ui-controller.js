@@ -103,7 +103,7 @@ export class ChessUIController {
             (this.engine.getTurn() === 'w' && this.engine.playerColor === 'white') || 
             (this.engine.getTurn() === 'b' && this.engine.playerColor === 'black');
 
-        const result = this.engine.makeMove(orig, dest);
+        const result = this.engine.makeMove({ from: orig, to: dest });
         
         if (result.success) {
             if (isPlayerMove && this.engine.autoCheckEnabled) {
@@ -193,11 +193,7 @@ export class ChessUIController {
                 const selectedMove = LichessAPI.selectComputerMove(data.moves, topP, topK);
                 
                 if (selectedMove) {
-                    const result = this.engine.makeMove(
-                        selectedMove.uci.substring(0, 2),
-                        selectedMove.uci.substring(2, 4),
-                        selectedMove.uci.length > 4 ? selectedMove.uci[4] : 'q'
-                    );
+                    const result = this.engine.makeMove(selectedMove.san);
                     
                     if (result.success) {
                         this.updateBoard();
@@ -261,8 +257,16 @@ export class ChessUIController {
                 rating: button.dataset.rating,
                 active: button.classList.contains('active')
             }));
+
+        const topP = document.getElementById('topPInput').value;
+        const topK = document.getElementById('topKInput').value;
         
-        localStorage.setItem('chessFilters', JSON.stringify({ speeds, ratings }));
+        localStorage.setItem('chessFilters', JSON.stringify({ 
+            speeds, 
+            ratings,
+            topP,
+            topK
+        }));
     }
 
     loadFilters() {
@@ -271,36 +275,56 @@ export class ChessUIController {
         
         const filters = JSON.parse(savedFilters);
         
-        filters.speeds.forEach(speed => {
+        filters.speeds?.forEach(speed => {
             const button = document.querySelector(`#timeControls .filter-option[data-speed="${speed.speed}"]`);
             if (button) {
                 button.classList.toggle('active', speed.active);
             }
         });
         
-        filters.ratings.forEach(rating => {
+        filters.ratings?.forEach(rating => {
             const button = document.querySelector(`#ratings .filter-option[data-rating="${rating.rating}"]`);
             if (button) {
                 button.classList.toggle('active', rating.active);
             }
         });
+
+        // Load topP and topK values
+        if (filters.topP) {
+            document.getElementById('topPInput').value = filters.topP;
+            document.getElementById('topPSlider').value = filters.topP;
+        }
+        if (filters.topK) {
+            document.getElementById('topKInput').value = filters.topK;
+        }
     }
 
     // Utility methods
     syncTopPControls() {
         const slider = document.getElementById('topPSlider');
         const input = document.getElementById('topPInput');
+        const topKInput = document.getElementById('topKInput');
         
         slider.addEventListener('input', (e) => {
             input.value = e.target.value;
+            this.saveFilters();
         });
         
-        input.addEventListener('input', (e) => {
+        input.addEventListener('blur', (e) => {
             let value = parseFloat(e.target.value);
+            if (isNaN(value)) value = 0;
             if (value < 0) value = 0;
             if (value > 1) value = 1;
             slider.value = value;
             input.value = value;
+            this.saveFilters();
+        });
+
+        topKInput.addEventListener('blur', () => {
+            let value = parseInt(topKInput.value);
+            if (isNaN(value) || value < 1) value = 1;
+            topKInput.value = value;
+            this.saveFilters();
         });
     }
 

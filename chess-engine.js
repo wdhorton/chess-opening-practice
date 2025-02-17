@@ -31,13 +31,9 @@ export class ChessEngine {
     }
 
     // Move management
-    makeMove(orig, dest, promotion = 'q') {
+    makeMove(sanOrMove) {
         const prevFen = this.game.fen();
-        const move = this.game.move({
-            from: orig,
-            to: dest,
-            promotion
-        });
+        const move = this.game.move(sanOrMove);
 
         if (move) {
             this.appliedMoves.push(move);
