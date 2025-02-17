@@ -18,8 +18,8 @@ export class ChessEngine {
         return this.game.pgn();
     }
 
-    getHistory() {
-        return this.game.history({ verbose: true });
+    getHistory({ verbose } = { verbose: true }) {
+        return this.game.history({ verbose: verbose });
     }
 
     getTurn() {

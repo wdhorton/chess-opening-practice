@@ -49,8 +49,52 @@ export class ChessUIController {
         document.getElementById('savePositionBtn').addEventListener('click', () => this.saveCurrentPosition());
         document.getElementById('backBtn').addEventListener('click', () => this.undoMove());
         document.getElementById('forwardBtn').addEventListener('click', () => this.redoMove());
+        document.getElementById('pgnFile').addEventListener('change', (e) => this.handlePGNFileUpload(e));
+        document.getElementById('autoCheckMoves').addEventListener('change', (event) => {
+            this.engine.autoCheckEnabled = event.target.checked;
+        });
+        document.getElementById('checkMovesBtn').addEventListener('click', () => this.checkMoves());
+        document.getElementById('analyzeBtn').addEventListener('click', () => this.goToLichessAnalysis());
         
         this.initializeFilterControls();
+    }
+
+    checkMoves() {
+        const validMoves = this.engine.getValidMovesForPosition(this.engine.getFen());
+        if (validMoves.length > 0) {
+            moveStatus.textContent = `Valid moves from this position: ${validMoves}`;
+            moveStatus.className = 'move-status valid';
+        } else {
+            moveStatus.textContent = `No moves found in repertoire for this position`;
+            moveStatus.className = 'move-status invalid';
+        }
+    }
+
+    goToLichessAnalysis() {
+        const moves = this.engine.getHistory({ verbose: false });
+        const pgnMoves = moves.join('_');
+        const url = `https://lichess.org/analysis/pgn/${encodeURIComponent(pgnMoves)}`;
+        window.open(url, '_blank');
+    }
+
+    handlePGNFileUpload = (event) => {
+        const file = event.target.files[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            try {
+                this.engine.buildFenMoveMap(e.target.result);
+                document.getElementById('checkMovesBtn').disabled = false;
+                document.getElementById('moveStatus').textContent = `Repertoire loaded successfully: ${Object.keys(this.engine.fenMoveMap).length} positions found`;
+                document.getElementById('moveStatus').className = 'move-status valid';
+            } catch (error) {
+                console.error('Error parsing PGN:', error);
+                document.getElementById('moveStatus').textContent = 'Error loading PGN file';
+                document.getElementById('moveStatus').className = 'move-status invalid';
+            }
+        };
+        reader.readAsText(file);
     }
 
     // Move handling
@@ -63,7 +107,15 @@ export class ChessUIController {
         
         if (result.success) {
             if (isPlayerMove && this.engine.autoCheckEnabled) {
-                this.checkMoveAgainstRepertoire(result.prevFen, result.move);
+                const validMoves = this.engine.getValidMovesForPosition(result.prevFen);
+                const moveStatus = document.getElementById('moveStatus');
+                if (validMoves.includes(result.move.san)) {
+                    moveStatus.textContent = 'Move is in your repertoire';
+                    moveStatus.className = 'move-status valid';
+                } else {
+                    moveStatus.textContent = `Move is not in your repertoire. Valid moves were: ${validMoves}`;
+                    moveStatus.className = 'move-status invalid';
+                }
             }
 
             this.updateBoard();
@@ -316,7 +368,7 @@ export class ChessUIController {
         const fenInput = document.getElementById('fenInput');
         const fen = fenInput.value.trim();
         
-        const result = this.engine.setPosition(fen);
+        const result = this.engine.setPositionFromFen(fen);
         if (result.success) {
             this.updateBoard();
             this.updateStatus('Position set from FEN');
