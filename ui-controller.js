@@ -20,6 +20,7 @@ export class ChessUIController {
         this.loadRepertoires();
         this.updateStatus();
         this.updateMovesList();
+        this.updateButtonStates(); // Initialize button states
     }
 
     // Initialize Chessground
@@ -167,6 +168,16 @@ export class ChessUIController {
             }
         });
         this.updateStatus();
+        
+        // Update button states based on current engine state
+        this.updateButtonStates();
+    }
+    
+    // Update UI button states based on current game state
+    updateButtonStates() {
+        // Update back/forward button states
+        document.getElementById('backBtn').disabled = !this.engine.appliedMoves.length;
+        document.getElementById('forwardBtn').disabled = !this.engine.undoneMoves.length;
     }
 
     // UI updates
@@ -453,6 +464,9 @@ export class ChessUIController {
         if (result.success) {
             this.updateBoard();
             this.updateMovesList();
+        } else {
+            this.updateStatus("Cannot undo - no more moves to take back");
+            this.updateButtonStates();
         }
     }
 
@@ -461,6 +475,12 @@ export class ChessUIController {
         if (result.success) {
             this.updateBoard();
             this.updateMovesList();
+        } else {
+            // Provide feedback when redoing isn't possible
+            this.updateStatus("Cannot redo - no more moves to replay");
+            
+            // Update button states
+            this.updateButtonStates();
         }
     }
 
