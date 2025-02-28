@@ -59,6 +59,7 @@ export class ChessUIController {
         });
         document.getElementById('checkMovesBtn').addEventListener('click', () => this.checkMoves());
         document.getElementById('analyzeBtn').addEventListener('click', () => this.goToLichessAnalysis());
+        document.getElementById('chessableBtn').addEventListener('click', () => this.goToChessableSearch());
         
         // Repertoire management event listeners
         document.getElementById('saveRepertoireBtn').addEventListener('click', () => this.saveCurrentRepertoire());
