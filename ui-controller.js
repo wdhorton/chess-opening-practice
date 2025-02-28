@@ -7,6 +7,8 @@ export class ChessUIController {
         this.engine = new ChessEngine();
         this.cg = null;
         this.savedPositions = [];
+        this.repertoires = [];
+        this.currentRepertoireName = "";
         this.initializeUI();
     }
 
@@ -15,10 +17,12 @@ export class ChessUIController {
         this.initializeChessground();
         this.initializeEventListeners();
         this.loadSavedPositions();
+        this.loadRepertoires();
         this.updateStatus();
         this.updateMovesList();
     }
 
+    // Initialize Chessground
     initializeChessground() {
         const config = {
             fen: this.engine.getFen(),
@@ -56,25 +60,13 @@ export class ChessUIController {
         document.getElementById('checkMovesBtn').addEventListener('click', () => this.checkMoves());
         document.getElementById('analyzeBtn').addEventListener('click', () => this.goToLichessAnalysis());
         
+        // Repertoire management event listeners
+        document.getElementById('saveRepertoireBtn').addEventListener('click', () => this.saveCurrentRepertoire());
+        document.getElementById('loadRepertoireBtn').addEventListener('click', () => this.loadSelectedRepertoire());
+        document.getElementById('deleteRepertoireBtn').addEventListener('click', () => this.deleteSelectedRepertoire());
+        document.getElementById('repertoireSelect').addEventListener('change', () => this.onRepertoireSelectionChange());
+        
         this.initializeFilterControls();
-    }
-
-    checkMoves() {
-        const validMoves = this.engine.getValidMovesForPosition(this.engine.getFen());
-        if (validMoves.length > 0) {
-            moveStatus.textContent = `Valid moves from this position: ${validMoves}`;
-            moveStatus.className = 'move-status valid';
-        } else {
-            moveStatus.textContent = `No moves found in repertoire for this position`;
-            moveStatus.className = 'move-status invalid';
-        }
-    }
-
-    goToLichessAnalysis() {
-        const moves = this.engine.getHistory({ verbose: false });
-        const pgnMoves = moves.join('_');
-        const url = `https://lichess.org/analysis/pgn/${encodeURIComponent(pgnMoves)}`;
-        window.open(url, '_blank');
     }
 
     handlePGNFileUpload = (event) => {
@@ -86,6 +78,13 @@ export class ChessUIController {
             try {
                 this.engine.buildFenMoveMap(e.target.result);
                 document.getElementById('checkMovesBtn').disabled = false;
+                document.getElementById('saveRepertoireBtn').disabled = false;
+                
+                // Set a default name for the repertoire based on file name
+                const fileName = file.name.replace(/\.pgn$/i, '');
+                document.getElementById('repertoireName').value = fileName;
+                this.currentRepertoireName = '';
+                
                 document.getElementById('moveStatus').textContent = `Repertoire loaded successfully: ${Object.keys(this.engine.fenMoveMap).length} positions found`;
                 document.getElementById('moveStatus').className = 'move-status valid';
             } catch (error) {
@@ -95,6 +94,33 @@ export class ChessUIController {
             }
         };
         reader.readAsText(file);
+    }
+
+    checkMoves() {
+        const validMoves = this.engine.getValidMovesForPosition(this.engine.getFen());
+        const moveStatus = document.getElementById('moveStatus');
+        const repertoireInfo = this.currentRepertoireName ? ` (${this.currentRepertoireName})` : '';
+        
+        if (validMoves.length > 0) {
+            moveStatus.textContent = `Valid moves from this position${repertoireInfo}: ${validMoves.join(', ')}`;
+            moveStatus.className = 'move-status valid';
+        } else {
+            moveStatus.textContent = `No moves found in repertoire${repertoireInfo} for this position`;
+            moveStatus.className = 'move-status invalid';
+        }
+    }
+
+    goToLichessAnalysis() {
+        const moves = this.engine.getHistory({ verbose: false });
+        const pgnMoves = moves.join('_');
+        const url = `https://lichess.org/analysis/pgn/${encodeURIComponent(pgnMoves)}`;
+        window.open(url, '_blank');
+    }
+
+    goToChessableSearch() {
+        const fen = this.engine.getFen();
+        const url = `https://www.chessable.com/courses/fen/${encodeURIComponent(fen)}`;
+        window.open(url, '_blank');
     }
 
     // Move handling
@@ -109,11 +135,13 @@ export class ChessUIController {
             if (isPlayerMove && this.engine.autoCheckEnabled) {
                 const validMoves = this.engine.getValidMovesForPosition(result.prevFen);
                 const moveStatus = document.getElementById('moveStatus');
+                const repertoireInfo = this.currentRepertoireName ? ` (${this.currentRepertoireName})` : '';
+                
                 if (validMoves.includes(result.move.san)) {
-                    moveStatus.textContent = 'Move is in your repertoire';
+                    moveStatus.textContent = `Move is in your repertoire${repertoireInfo}`;
                     moveStatus.className = 'move-status valid';
                 } else {
-                    moveStatus.textContent = `Move is not in your repertoire. Valid moves were: ${validMoves}`;
+                    moveStatus.textContent = `Move is not in your repertoire${repertoireInfo}. Valid moves were: ${validMoves.join(', ')}`;
                     moveStatus.className = 'move-status invalid';
                 }
             }
@@ -444,6 +472,157 @@ export class ChessUIController {
         }
     }
 
+    // Repertoire management methods
+    saveCurrentRepertoire() {
+        const nameInput = document.getElementById('repertoireName');
+        const name = nameInput.value.trim();
+        
+        if (!name) {
+            alert('Please enter a repertoire name');
+            return;
+        }
+        
+        if (Object.keys(this.engine.fenMoveMap).length === 0) {
+            alert('No repertoire loaded to save');
+            return;
+        }
+        
+        const repertoire = {
+            name: name,
+            fenMoveMap: this.engine.fenMoveMap,
+            timestamp: new Date().toISOString()
+        };
+        
+        // Check if we're updating an existing repertoire
+        const existingIndex = this.repertoires.findIndex(r => r.name === name);
+        if (existingIndex >= 0) {
+            if (confirm(`Update existing repertoire "${name}"?`)) {
+                this.repertoires[existingIndex] = repertoire;
+            } else {
+                return;
+            }
+        } else {
+            this.repertoires.push(repertoire);
+        }
+        
+        this.currentRepertoireName = name;
+        this.saveRepertoiresToStorage();
+        this.updateRepertoiresList();
+        
+        // Clear input
+        nameInput.value = '';
+        
+        document.getElementById('moveStatus').textContent = `Repertoire "${name}" saved successfully`;
+        document.getElementById('moveStatus').className = 'move-status valid';
+    }
+    
+    loadSelectedRepertoire() {
+        const select = document.getElementById('repertoireSelect');
+        const selectedIndex = select.selectedIndex;
+        
+        if (selectedIndex <= 0) {
+            alert('Please select a repertoire to load');
+            return;
+        }
+        
+        const repertoire = this.repertoires[selectedIndex - 1]; // Adjusting for the placeholder option
+        this.engine.setRepertoire(repertoire.fenMoveMap);
+        this.currentRepertoireName = repertoire.name;
+        
+        document.getElementById('checkMovesBtn').disabled = false;
+        document.getElementById('moveStatus').textContent = `Repertoire "${repertoire.name}" loaded successfully: ${Object.keys(repertoire.fenMoveMap).length} positions`;
+        document.getElementById('moveStatus').className = 'move-status valid';
+    }
+    
+    deleteSelectedRepertoire() {
+        const select = document.getElementById('repertoireSelect');
+        const selectedIndex = select.selectedIndex;
+        
+        if (selectedIndex <= 0) {
+            alert('Please select a repertoire to delete');
+            return;
+        }
+        
+        const repertoireIndex = selectedIndex - 1; // Adjusting for the placeholder option
+        const repertoire = this.repertoires[repertoireIndex];
+        
+        if (confirm(`Are you sure you want to delete the repertoire "${repertoire.name}"?`)) {
+            this.repertoires.splice(repertoireIndex, 1);
+            this.saveRepertoiresToStorage();
+            this.updateRepertoiresList();
+            
+            document.getElementById('moveStatus').textContent = `Repertoire "${repertoire.name}" deleted`;
+            document.getElementById('moveStatus').className = 'move-status invalid';
+            
+            // Clear current repertoire if it was the one deleted
+            if (this.currentRepertoireName === repertoire.name) {
+                this.engine.clearRepertoire();
+                this.currentRepertoireName = '';
+                document.getElementById('checkMovesBtn').disabled = true;
+                document.getElementById('saveRepertoireBtn').disabled = true;
+            }
+        }
+    }
+    
+    onRepertoireSelectionChange() {
+        const select = document.getElementById('repertoireSelect');
+        const selectedIndex = select.selectedIndex;
+        
+        if (selectedIndex <= 0) {
+            document.getElementById('loadRepertoireBtn').disabled = true;
+            document.getElementById('deleteRepertoireBtn').disabled = true;
+        } else {
+            document.getElementById('loadRepertoireBtn').disabled = false;
+            document.getElementById('deleteRepertoireBtn').disabled = false;
+        }
+    }
+    
+    updateRepertoiresList() {
+        const select = document.getElementById('repertoireSelect');
+        
+        // Clear all options except the first placeholder
+        while (select.options.length > 1) {
+            select.remove(1);
+        }
+        
+        // Add repertoires to select
+        this.repertoires.forEach(repertoire => {
+            const option = document.createElement('option');
+            option.value = repertoire.name;
+            option.textContent = `${repertoire.name} (${Object.keys(repertoire.fenMoveMap).length} positions)`;
+            select.add(option);
+            
+            // Select current repertoire if it exists
+            if (repertoire.name === this.currentRepertoireName) {
+                select.value = repertoire.name;
+                document.getElementById('loadRepertoireBtn').disabled = false;
+                document.getElementById('deleteRepertoireBtn').disabled = false;
+            }
+        });
+        
+        // If no repertoires, disable buttons
+        if (this.repertoires.length === 0) {
+            document.getElementById('loadRepertoireBtn').disabled = true;
+            document.getElementById('deleteRepertoireBtn').disabled = true;
+        }
+    }
+    
+    loadRepertoires() {
+        const saved = localStorage.getItem('chessRepertoires');
+        if (saved) {
+            try {
+                this.repertoires = JSON.parse(saved);
+                this.updateRepertoiresList();
+            } catch (e) {
+                console.error('Error loading repertoires:', e);
+                this.repertoires = [];
+            }
+        }
+    }
+    
+    saveRepertoiresToStorage() {
+        localStorage.setItem('chessRepertoires', JSON.stringify(this.repertoires));
+    }
 
     // Update the positions list in the UI to show orientation
     updatePositionsList() {
