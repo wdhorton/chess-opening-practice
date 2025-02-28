@@ -11,122 +11,158 @@
 </head>
 <body>
     <div class="container">
-        <h1>Chess Opening Practice</h1>
-        <div id="status" class="info">Set up your starting position. You can play moves for both sides. Then click "Start Practice".</div>
-        <div id="gamesCount" style="margin-top:10px; font-weight:bold;"></div>
-        <div id="score" style="margin-top: 10px; font-weight: bold;"></div>
-        <div class="repertoire-checker">
-            <div class="upload-section">
-                <div class="upload-row">
-                    <span class="upload-label">Upload Repertoire PGN:</span>
-                    <input type="file" id="pgnFile" class="file-input">
-                </div>
+        <header>
+            <h1>Chess Opening Practice</h1>
+            <div id="status" class="info">Set up your starting position. You can play moves for both sides. Then click "Start Practice".</div>
+            <div class="stats">
+                <div id="gamesCount" class="stat-item"></div>
+                <div id="score" class="stat-item"></div>
             </div>
-            <div class="repertoire-management">
-                <div class="repertoire-row">
-                    <input type="text" id="repertoireName" placeholder="Repertoire name" class="repertoire-name-input">
-                    <button id="saveRepertoireBtn" class="button" disabled>Save Repertoire</button>
-                </div>
-                <div class="repertoire-row">
-                    <select id="repertoireSelect" class="repertoire-select">
-                        <option value="">-- Select a saved repertoire --</option>
-                    </select>
-                    <button id="loadRepertoireBtn" class="button" disabled>Load Repertoire</button>
-                    <button id="deleteRepertoireBtn" class="button" disabled>Delete Repertoire</button>
-                </div>
-            </div>
-            <div class="moves-check-section">
-                <div class="check-row">
-                    <button id="checkMovesBtn" class="button" disabled>Check Moves</button>
-                    <div class="auto-check-wrapper">
-                        <input type="checkbox" id="autoCheckMoves" class="checkbox-input">
-                        <label for="autoCheckMoves">Auto-check moves</label>
+            <div id="statsDisplay" class="stats-display" style="display: none;"></div>
+        </header>
+
+        <div class="app-container">
+            <div class="main-content">
+                <div class="board-container">
+                    <div class="board-wrapper">
+                        <div id="board" class="board"></div>
+                        <div class="board-controls">
+                            <button id="flipBoardBtn" class="button">Flip Board</button>
+                            <button id="startBtn" class="button button-primary">Start Practice</button>
+                            <button id="resetBtn" class="button">Reset</button>
+                        </div>
+                    </div>
+                    <div class="moves-list" id="movesContainer">
+                        <div id="moveNavigation">
+                            <button id="backBtn" class="button button-secondary" title="Undo Move">←</button>
+                            <div class="moves-title">Moves Played</div>
+                            <button id="forwardBtn" class="button button-secondary" title="Redo Move">→</button>
+                        </div>
+                        <div id="moves"></div>
                     </div>
                 </div>
-            </div>
-            <div id="validMoves" class="valid-moves"></div>
-            <div id="moveStatus" class="move-status"></div>
-        </div>
-        <div class="board-and-moves">
-            <div id="board" class="board"></div>
-            <div class="moves-list" id="movesContainer">
-              <div id="moveNavigation" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 5px;">
-                <button id="backBtn" class="button" title="Undo Move">&#8592;</button>
-                <span>Moves Played</span>
-                <button id="forwardBtn" class="button" title="Redo Move">&#8594;</button>
-              </div>
-              <div id="moves"></div>
-            </div>
-        </div>
-        <div class="controls">
-            <button id="startBtn" class="button">Start Practice</button>
-            <button id="flipBoardBtn" class="button">Flip Board</button>
-            <button id="resetBtn" class="button">Reset</button>
-            <div class="button-group">
-                <button id="copyFenBtn" class="button" style="background-color: #9c27b0;">Copy FEN</button>
-                <button id="copyPgnBtn" class="button" style="background-color: #9c27b0;">Copy PGN</button>
-                <button id="analyzeBtn" class="button" style="background-color: #9c27b0;">Analyze with Engine</button>
-                <button id="chessableBtn" class="button" style="background-color: #9c27b0;">Search Position in Chessable</button>
-                <button id="savePositionBtn" class="button">Save Position</button>
-            </div>
-        </div>
-        <div class="fen-input">
-            <input type="text" id="fenInput" placeholder="Enter FEN string" aria-label="FEN string input">
-            <button id="setFenBtn" class="button">Set Position</button>
-        </div>
-        <div class="filters">
-            <div class="filter-section">
-                <h3>Move Sampling Controls</h3>
-                <div class="sampling-controls">
-                    <div class="control-group">
-                        <label for="topP">Top P (0-1):</label>
-                        <input type="range" id="topPSlider" min="0" max="1" step="0.01" value="1">
-                        <input type="number" id="topPInput" min="0" max="1" step="0.01" value="1">
+
+                <div class="action-controls">
+                    <div class="action-buttons">
+                        <button id="copyFenBtn" class="button button-secondary">Copy FEN</button>
+                        <button id="copyPgnBtn" class="button button-secondary">Copy PGN</button>
+                        <button id="analyzeBtn" class="button button-secondary">Analyze with Engine</button>
+                        <button id="chessableBtn" class="button button-secondary">Search in Chessable</button>
                     </div>
-                    <div class="control-group">
-                        <label for="topK">Top K (moves):</label>
-                        <input type="number" id="topKInput" min="1" step="1" value="999">
-                    </div>
-                    <div class="control-group">
-                        <label for="minGames">Min Games:</label>
-                        <input type="number" id="minGamesInput" min="1" step="1" value="1">
+                    <button id="savePositionBtn" class="button save-position-btn">Save Position</button>
+
+                    <div class="fen-input">
+                        <input type="text" id="fenInput" placeholder="Enter FEN string" aria-label="FEN string input">
+                        <button id="setFenBtn" class="button">Set Position</button>
                     </div>
                 </div>
             </div>
 
-            <div class="filter-section">
-                <h3>Time control</h3>
-                <div class="filter-options" id="timeControls">
-                    <button class="filter-option" data-speed="ultraBullet">UltraBullet</button>
-                    <button class="filter-option" data-speed="bullet">Bullet</button>
-                    <button class="filter-option active" data-speed="blitz">Blitz</button>
-                    <button class="filter-option active" data-speed="rapid">Rapid</button>
-                    <button class="filter-option active" data-speed="classical">Classical</button>
-                    <button class="filter-option" data-speed="correspondence">Correspondence</button>
+            <div class="sidebar">
+                <div class="card repertoire-checker">
+                    <h3 class="card-title">Repertoire Management</h3>
+                    <div class="upload-section">
+                        <div class="upload-row">
+                            <span class="upload-label">Upload Repertoire PGN:</span>
+                            <input type="file" id="pgnFile" class="file-input">
+                        </div>
+                    </div>
+                    <div class="repertoire-management">
+                        <div class="repertoire-row">
+                            <input type="text" id="repertoireName" placeholder="Repertoire name" class="repertoire-name-input">
+                            <button id="saveRepertoireBtn" class="button" disabled>Save Repertoire</button>
+                        </div>
+                        <div class="repertoire-row">
+                            <select id="repertoireSelect" class="repertoire-select">
+                                <option value="">-- Select a saved repertoire --</option>
+                            </select>
+                            <div class="repertoire-buttons">
+                                <button id="loadRepertoireBtn" class="button" disabled>Load</button>
+                                <button id="deleteRepertoireBtn" class="button button-danger" disabled>Delete</button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="moves-check-section">
+                        <div class="check-row">
+                            <button id="checkMovesBtn" class="button" disabled>Check Moves</button>
+                            <div class="auto-check-wrapper">
+                                <input type="checkbox" id="autoCheckMoves" class="checkbox-input">
+                                <label for="autoCheckMoves">Auto-check moves</label>
+                            </div>
+                        </div>
+                    </div>
+                    <div id="validMoves" class="valid-moves"></div>
+                    <div id="moveStatus" class="move-status"></div>
                 </div>
-            </div>
-            
-            <div class="filter-section">
-                <h3>Average rating</h3>
-                <div class="filter-options" id="ratings">
-                    <button class="filter-option" data-rating="0">0</button>
-                    <button class="filter-option active" data-rating="1000">1000</button>
-                    <button class="filter-option active" data-rating="1200">1200</button>
-                    <button class="filter-option active" data-rating="1400">1400</button>
-                    <button class="filter-option active" data-rating="1600">1600</button>
-                    <button class="filter-option active" data-rating="1800">1800</button>
-                    <button class="filter-option active" data-rating="2000">2000</button>
-                    <button class="filter-option active" data-rating="2200">2200</button>
-                    <button class="filter-option active" data-rating="2500">2500</button>
+
+                <div class="card filters">
+                    <div class="filter-section">
+                        <h3 class="card-title">Move Sampling Controls</h3>
+                        <div class="sampling-controls">
+                            <div class="control-group">
+                                <label for="topP">Top P (0-1):</label>
+                                <input type="range" id="topPSlider" min="0" max="1" step="0.01" value="1">
+                                <input type="number" id="topPInput" min="0" max="1" step="0.01" value="1">
+                            </div>
+                            <div class="control-group">
+                                <label for="topK">Top K (moves):</label>
+                                <input type="number" id="topKInput" min="1" step="1" value="999">
+                            </div>
+                            <div class="control-group">
+                                <label for="minGames">Min Games:</label>
+                                <input type="number" id="minGamesInput" min="1" step="1" value="1">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="filter-section">
+                        <h3 class="card-title">Time control</h3>
+                        <div class="filter-options" id="timeControls">
+                            <button class="filter-option" data-speed="ultraBullet">UltraBullet</button>
+                            <button class="filter-option" data-speed="bullet">Bullet</button>
+                            <button class="filter-option active" data-speed="blitz">Blitz</button>
+                            <button class="filter-option active" data-speed="rapid">Rapid</button>
+                            <button class="filter-option active" data-speed="classical">Classical</button>
+                            <button class="filter-option" data-speed="correspondence">Correspondence</button>
+                        </div>
+                    </div>
+                    
+                    <div class="filter-section">
+                        <h3 class="card-title">Average rating</h3>
+                        <div class="filter-options" id="ratings">
+                            <button class="filter-option" data-rating="0">0</button>
+                            <button class="filter-option active" data-rating="1000">1000</button>
+                            <button class="filter-option active" data-rating="1200">1200</button>
+                            <button class="filter-option active" data-rating="1400">1400</button>
+                            <button class="filter-option active" data-rating="1600">1600</button>
+                            <button class="filter-option active" data-rating="1800">1800</button>
+                            <button class="filter-option active" data-rating="2000">2000</button>
+                            <button class="filter-option active" data-rating="2200">2200</button>
+                            <button class="filter-option active" data-rating="2500">2500</button>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="card saved-positions">
+                    <h3>Saved Positions</h3>
+                    <div id="positions-list">
+                        <!-- Example Position Item (will be dynamically added) -->
+                        <div class="position-item">
+                            <div class="position-item-info">
+                                <div class="position-name">Sicilian Defense: Najdorf Variation</div>
+                                <div class="position-details">
+                                    <span class="position-orientation">Black to move</span>
+                                </div>
+                            </div>
+                            <div class="position-item-actions">
+                                <button class="button button-small button-secondary load-position">Load</button>
+                                <button class="button button-small button-danger delete-position">Delete</button>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
-        <div class="saved-positions">
-            <h3>Saved Positions</h3>
-            <div class="positions-list" id="positionsList">
-                <!-- Saved positions will be inserted here -->
-            </div>
-        </div>        
     </div>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/chess.js/0.10.3/chess.min.js"></script>
