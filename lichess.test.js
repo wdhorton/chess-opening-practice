@@ -51,6 +51,36 @@ describe('LichessAPI', () => {
             expect(result[0].probability).toBeCloseTo(0.5, 6);
             expect(result[1].probability).toBeCloseTo(0.5, 6);
         });
+
+        it('should filter out positions with fewer total games than minGames', () => {
+            // Position with 100 total games
+            const moves1 = [
+                { white: 40, black: 30, draws: 10, uci: 'e2e4' }, // 80 games
+                { white: 10, black: 5, draws: 5, uci: 'd2d4' }    // 20 games
+            ];
+            
+            // With minGames = 50, should return all moves since total games (100) > 50
+            const result1 = LichessAPI.selectMoves(moves1, 1, 10, 50);
+            expect(result1.length).toBe(2);
+            
+            // With minGames = 150, should return no moves since total games (100) < 150
+            const result2 = LichessAPI.selectMoves(moves1, 1, 10, 150);
+            expect(result2.length).toBe(0);
+            
+            // Test a position with only 5 total games
+            const moves2 = [
+                { white: 2, black: 1, draws: 0, uci: 'e2e4' }, // 3 games
+                { white: 1, black: 0, draws: 1, uci: 'd2d4' }  // 2 games
+            ];
+            
+            // With default minGames (1), should return both moves
+            const result3 = LichessAPI.selectMoves(moves2, 1, 10);
+            expect(result3.length).toBe(2);
+            
+            // With minGames = 10, should return no moves
+            const result4 = LichessAPI.selectMoves(moves2, 1, 10, 10);
+            expect(result4.length).toBe(0);
+        });
     });
 
     describe('sampleMove', () => {
@@ -112,6 +142,38 @@ describe('LichessAPI', () => {
             
             const result = LichessAPI.selectComputerMove(moves, 0.9, 10);
             expect(result.uci).toBe('d2d4');
+        });
+
+        it('should pass minGames parameter to selectMoves', () => {
+            const moves = [
+                { white: 5, black: 3, draws: 2, uci: 'e2e4' },
+                { white: 3, black: 2, draws: 1, uci: 'd2d4' }
+            ];
+            
+            // Spy on selectMoves to verify it's called with the correct parameters
+            const selectMovesSpy = vi.spyOn(LichessAPI, 'selectMoves');
+            
+            // Test with default minGames (1)
+            LichessAPI.selectComputerMove(moves, 0.9, 10);
+            expect(selectMovesSpy).toHaveBeenCalledWith(moves, 0.9, 10, 1);
+            
+            // Test with specific minGames value
+            LichessAPI.selectComputerMove(moves, 0.9, 10, 20);
+            expect(selectMovesSpy).toHaveBeenCalledWith(moves, 0.9, 10, 20);
+        });
+
+        it('should return null when there are no moves with enough total games', () => {
+            const moves = [
+                { white: 2, black: 1, draws: 1, uci: 'e2e4' }, // 4 games
+                { white: 1, black: 1, draws: 0, uci: 'd2d4' }  // 2 games
+            ];
+            
+            // Clear any previous mocks to ensure real implementation is used
+            vi.restoreAllMocks();
+            
+            // Set minGames to 10, which is more than the total games (6)
+            const result = LichessAPI.selectComputerMove(moves, 1, 10, 10);
+            expect(result).toBeNull();
         });
     });
 }); 
