@@ -361,7 +361,13 @@ h1 {
         color: #fff;
     }
 
-    .moves-list, .filters, .repertoire-checker {
+    #status {
+        background-color: #2a4b7c; /* Darker blue for contrast */
+        color: #fff; /* White text for readability */
+        border-left: 4px solid #2196F3; /* Keep the blue accent */
+    }
+
+    .moves-list, .filters, .repertoire-checker, .saved-positions {
         background: #2d2d2d;
     }
 
@@ -377,7 +383,7 @@ h1 {
         color: #fff;
     }
 
-    h1 {
+    h1, .saved-positions h3, #status {
         color: #fff;
     }
 
@@ -385,7 +391,7 @@ h1 {
         background: #333;
         border-color: #444;
     }
-    
+
     .position-item:hover {
         background: #404040;
     }
@@ -399,4 +405,4 @@ h1 {
     #moveNavigation {
         background: #333;
     }
-} 
+}
