@@ -70,30 +70,6 @@ export class ChessUIController {
         this.initializeFilterControls();
     }
 
-    checkMoves() {
-        const validMoves = this.engine.getValidMovesForPosition(this.engine.getFen());
-        if (validMoves.length > 0) {
-            moveStatus.textContent = `Valid moves from this position: ${validMoves}`;
-            moveStatus.className = 'move-status valid';
-        } else {
-            moveStatus.textContent = `No moves found in repertoire for this position`;
-            moveStatus.className = 'move-status invalid';
-        }
-    }
-
-    goToLichessAnalysis() {
-        const moves = this.engine.getHistory({ verbose: false });
-        const pgnMoves = moves.join('_');
-        const url = `https://lichess.org/analysis/pgn/${encodeURIComponent(pgnMoves)}`;
-        window.open(url, '_blank');
-    }
-
-    goToChessableSearch() {
-        const fen = this.engine.getFen();
-        const url = `https://www.chessable.com/courses/fen/${encodeURIComponent(fen)}`;
-        window.open(url, '_blank');
-    }
-
     handlePGNFileUpload = (event) => {
         const file = event.target.files[0];
         if (!file) return;
