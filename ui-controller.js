@@ -117,26 +117,6 @@ export class ChessUIController {
         window.open(url, '_blank');
     }
 
-    handlePGNFileUpload = (event) => {
-        const file = event.target.files[0];
-        if (!file) return;
-
-        const reader = new FileReader();
-        reader.onload = (e) => {
-            try {
-                this.engine.buildFenMoveMap(e.target.result);
-                document.getElementById('checkMovesBtn').disabled = false;
-                document.getElementById('moveStatus').textContent = `Repertoire loaded successfully: ${Object.keys(this.engine.fenMoveMap).length} positions found`;
-                document.getElementById('moveStatus').className = 'move-status valid';
-            } catch (error) {
-                console.error('Error parsing PGN:', error);
-                document.getElementById('moveStatus').textContent = 'Error loading PGN file';
-                document.getElementById('moveStatus').className = 'move-status invalid';
-            }
-        };
-        reader.readAsText(file);
-    }
-
     goToChessableSearch() {
         const fen = this.engine.getFen();
         const url = `https://www.chessable.com/courses/fen/${encodeURIComponent(fen)}`;
