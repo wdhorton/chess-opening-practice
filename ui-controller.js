@@ -190,7 +190,8 @@ export class ChessUIController {
             if (data.moves && data.moves.length > 0) {
                 const topP = parseFloat(document.getElementById('topPInput').value);
                 const topK = parseInt(document.getElementById('topKInput').value);
-                const selectedMove = LichessAPI.selectComputerMove(data.moves, topP, topK);
+                const minGames = parseInt(document.getElementById('minGamesInput').value);
+                const selectedMove = LichessAPI.selectComputerMove(data.moves, topP, topK, minGames);
                 
                 if (selectedMove) {
                     const result = this.engine.makeMove(selectedMove.san);
@@ -260,12 +261,14 @@ export class ChessUIController {
 
         const topP = document.getElementById('topPInput').value;
         const topK = document.getElementById('topKInput').value;
+        const minGames = document.getElementById('minGamesInput').value;
         
         localStorage.setItem('chessFilters', JSON.stringify({ 
             speeds, 
             ratings,
             topP,
-            topK
+            topK,
+            minGames
         }));
     }
 
@@ -297,6 +300,9 @@ export class ChessUIController {
         if (filters.topK) {
             document.getElementById('topKInput').value = filters.topK;
         }
+        if (filters.minGames) {
+            document.getElementById('minGamesInput').value = filters.minGames;
+        }
     }
 
     // Utility methods
@@ -304,6 +310,7 @@ export class ChessUIController {
         const slider = document.getElementById('topPSlider');
         const input = document.getElementById('topPInput');
         const topKInput = document.getElementById('topKInput');
+        const minGamesInput = document.getElementById('minGamesInput');
         
         slider.addEventListener('input', (e) => {
             input.value = e.target.value;
@@ -324,6 +331,13 @@ export class ChessUIController {
             let value = parseInt(topKInput.value);
             if (isNaN(value) || value < 1) value = 1;
             topKInput.value = value;
+            this.saveFilters();
+        });
+
+        minGamesInput.addEventListener('blur', () => {
+            let value = parseInt(minGamesInput.value);
+            if (isNaN(value) || value < 1) value = 1;
+            minGamesInput.value = value;
             this.saveFilters();
         });
     }

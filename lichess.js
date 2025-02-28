@@ -86,11 +86,12 @@ export class LichessAPI {
         }
     }
 
-    static selectMoves(moves, topP, topK) {
+    static selectMoves(moves, topP, topK, minGames = 1) {
         if (!moves || moves.length === 0) return [];
 
         const totalGames = moves.reduce((sum, move) => sum + move.white + move.black + move.draws, 0);
-        if (totalGames === 0) return [];
+        // Return empty array if total games in position is less than minGames
+        if (totalGames < minGames) return [];
         
         // Calculate probabilities and sort by popularity
         const movesWithProb = moves
@@ -134,8 +135,8 @@ export class LichessAPI {
         return normalizedMoves[0];
     }
 
-    static selectComputerMove(moves, topP, topK) {
-        const selectedMoves = this.selectMoves(moves, topP, topK);
+    static selectComputerMove(moves, topP, topK, minGames = 1) {
+        const selectedMoves = this.selectMoves(moves, topP, topK, minGames);
         return this.sampleMove(selectedMoves);
     }
 } 
