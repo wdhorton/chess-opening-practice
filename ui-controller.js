@@ -55,6 +55,7 @@ export class ChessUIController {
         });
         document.getElementById('checkMovesBtn').addEventListener('click', () => this.checkMoves());
         document.getElementById('analyzeBtn').addEventListener('click', () => this.goToLichessAnalysis());
+        document.getElementById('chessableBtn').addEventListener('click', () => this.goToChessableSearch());
         
         this.initializeFilterControls();
     }
@@ -74,6 +75,12 @@ export class ChessUIController {
         const moves = this.engine.getHistory({ verbose: false });
         const pgnMoves = moves.join('_');
         const url = `https://lichess.org/analysis/pgn/${encodeURIComponent(pgnMoves)}`;
+        window.open(url, '_blank');
+    }
+
+    goToChessableSearch() {
+        const fen = this.engine.getFen();
+        const url = `https://www.chessable.com/courses/fen/${encodeURIComponent(fen)}`;
         window.open(url, '_blank');
     }
 
