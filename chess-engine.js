@@ -156,6 +156,20 @@ export class ChessEngine {
         return this.fenMoveMap;
     }
 
+    clearRepertoire() {
+        this.fenMoveMap = {};
+        return { success: true };
+    }
+
+    setRepertoire(fenMoveMap) {
+        if (!fenMoveMap || typeof fenMoveMap !== 'object') {
+            return { success: false, error: 'Invalid repertoire data' };
+        }
+        
+        this.fenMoveMap = fenMoveMap;
+        return { success: true };
+    }
+
     getValidMovesForPosition(fen) {
         const normalizedFen = this.normalizeFen(fen);
         return this.fenMoveMap[normalizedFen] || [];

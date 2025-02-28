@@ -21,11 +21,28 @@
                     <span class="upload-label">Upload Repertoire PGN:</span>
                     <input type="file" id="pgnFile" class="file-input">
                 </div>
-                <button id="checkMovesBtn" class="button" disabled>Check Moves</button>
             </div>
-            <div class="auto-check-section">
-                <input type="checkbox" id="autoCheckMoves" class="checkbox-input">
-                <label for="autoCheckMoves">Auto-check moves</label>
+            <div class="repertoire-management">
+                <div class="repertoire-row">
+                    <input type="text" id="repertoireName" placeholder="Repertoire name" class="repertoire-name-input">
+                    <button id="saveRepertoireBtn" class="button" disabled>Save Repertoire</button>
+                </div>
+                <div class="repertoire-row">
+                    <select id="repertoireSelect" class="repertoire-select">
+                        <option value="">-- Select a saved repertoire --</option>
+                    </select>
+                    <button id="loadRepertoireBtn" class="button" disabled>Load Repertoire</button>
+                    <button id="deleteRepertoireBtn" class="button" disabled>Delete Repertoire</button>
+                </div>
+            </div>
+            <div class="moves-check-section">
+                <div class="check-row">
+                    <button id="checkMovesBtn" class="button" disabled>Check Moves</button>
+                    <div class="auto-check-wrapper">
+                        <input type="checkbox" id="autoCheckMoves" class="checkbox-input">
+                        <label for="autoCheckMoves">Auto-check moves</label>
+                    </div>
+                </div>
             </div>
             <div id="validMoves" class="valid-moves"></div>
             <div id="moveStatus" class="move-status"></div>
