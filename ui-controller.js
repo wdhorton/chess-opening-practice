@@ -98,12 +98,20 @@ export class ChessUIController {
     }
 
     checkMoves() {
-        const validMoves = this.engine.getValidMovesForPosition(this.engine.getFen());
+        const validMovesWithComments = this.engine.getValidMovesForPosition(this.engine.getFen());
+        const validMoves = this.engine.getValidMoveSANs(this.engine.getFen());
         const moveStatus = document.getElementById('moveStatus');
         const repertoireInfo = this.currentRepertoireName ? ` (${this.currentRepertoireName})` : '';
         
         if (validMoves.length > 0) {
-            moveStatus.textContent = `Valid moves from this position${repertoireInfo}: ${validMoves.join(', ')}`;
+            const moveStrings = validMovesWithComments.map(move => {
+                if (typeof move === 'object' && move.san && move.comment) {
+                    return `${move.san} (${move.comment})`;
+                }
+                return typeof move === 'object' ? move.san : move;
+            });
+            
+            moveStatus.textContent = `Valid moves from this position${repertoireInfo}: ${moveStrings.join(', ')}`;
             moveStatus.className = 'move-status valid';
         } else {
             moveStatus.textContent = `No moves found in repertoire${repertoireInfo} for this position`;
@@ -134,15 +142,33 @@ export class ChessUIController {
         
         if (result.success) {
             if (isPlayerMove && this.engine.autoCheckEnabled) {
-                const validMoves = this.engine.getValidMovesForPosition(result.prevFen);
+                const validMovesWithComments = this.engine.getValidMovesForPosition(result.prevFen);
+                const validMoves = this.engine.getValidMoveSANs(result.prevFen);
+                
                 const moveStatus = document.getElementById('moveStatus');
                 const repertoireInfo = this.currentRepertoireName ? ` (${this.currentRepertoireName})` : '';
                 
+                // Find if the move has a comment
+                const moveInfo = validMovesWithComments.find(move => {
+                    const san = typeof move === 'object' ? move.san : move;
+                    return san === result.move.san;
+                });
+                
+                const comment = moveInfo && typeof moveInfo === 'object' && moveInfo.comment 
+                    ? ` - ${moveInfo.comment}` : '';
+                
                 if (validMoves.includes(result.move.san)) {
-                    moveStatus.textContent = `Move is in your repertoire${repertoireInfo}`;
+                    moveStatus.textContent = `Move is in your repertoire${repertoireInfo}${comment}`;
                     moveStatus.className = 'move-status valid';
                 } else {
-                    moveStatus.textContent = `Move is not in your repertoire${repertoireInfo}. Valid moves were: ${validMoves.join(', ')}`;
+                    const moveStrings = validMovesWithComments.map(move => {
+                        if (typeof move === 'object' && move.san && move.comment) {
+                            return `${move.san} (${move.comment})`;
+                        }
+                        return typeof move === 'object' ? move.san : move;
+                    });
+                    
+                    moveStatus.textContent = `Move is not in your repertoire${repertoireInfo}. Valid moves were: ${moveStrings.join(', ')}`;
                     moveStatus.className = 'move-status invalid';
                 }
             }
@@ -170,23 +196,56 @@ export class ChessUIController {
     }
 
     // UI updates
-    updateStatus(message) {
-        const statusDiv = document.getElementById('status');
-        if (message) {
-            statusDiv.textContent = message;
-        } else {
-            let status = '';
-            if (this.engine.practicing) {
-                status = `Practice mode: You are playing ${this.engine.playerColor}`;
-                if (this.engine.isInCheck()) {
-                    status += ' - CHECK!';
+    updateStatus() {
+        const statusElement = document.getElementById('status');
+        const scoreElement = document.getElementById('score');
+        const gamesCountElement = document.getElementById('gamesCount');
+        const statsDisplay = document.getElementById('statsDisplay');
+        
+        if (this.engine.practicing) {
+            // Check for game end conditions
+            if (this.engine.isCheckmate()) {
+                const playerLost = this.engine.getTurn() === this.engine.playerColor.charAt(0);
+                statusElement.textContent = playerLost ? "Checkmate! You lost." : "Checkmate! You won.";
+                statusElement.className = playerLost ? "warning" : "success";
+            } else if (this.engine.isDraw()) {
+                let drawReason = "Game drawn";
+                if (this.engine.isStalemate()) {
+                    drawReason += " by stalemate";
+                } else if (this.engine.isThreefoldRepetition()) {
+                    drawReason += " by threefold repetition";
+                } else if (this.engine.isInsufficientMaterial()) {
+                    drawReason += " by insufficient material";
                 }
+                statusElement.textContent = drawReason;
+                statusElement.className = "info";
+            } else if (this.engine.isInCheck()) {
+                statusElement.textContent = `Practice mode: You are playing ${this.engine.playerColor} - CHECK!`;
+                statusElement.className = "warning";
             } else {
-                status = 'Set up your starting position. You can play moves for both sides. Then click "Start Practice".';
+                statusElement.textContent = `Practice mode: You are playing ${this.engine.playerColor}`;
+                statusElement.className = "info";
             }
-            statusDiv.textContent = status;
+            
+            // Show stats in a dedicated display when practicing
+            if (this.engine.gamesCount && this.engine.winPercentage !== null && this.engine.winPercentage !== undefined) {
+                statsDisplay.textContent = `There are ${this.engine.gamesCount.toLocaleString()} games with this position using your filters. White scored ${this.engine.winPercentage.toFixed(1)}% from this position.`;
+                statsDisplay.style.display = 'block';
+            } else {
+                statsDisplay.style.display = 'none';
+            }
+        } else {
+            statusElement.textContent = "Set up your starting position. You can play moves for both sides. Then click \"Start Practice\".";
+            statusElement.className = "info";
+            scoreElement.textContent = "";
+            statsDisplay.style.display = 'none';
         }
-        statusDiv.className = 'info';
+
+        if (this.engine.gamesCount) {
+            gamesCountElement.textContent = `Total Games: ${this.engine.gamesCount.toLocaleString()}`;
+        } else {
+            gamesCountElement.textContent = "";
+        }
     }
 
     updateMovesList() {
@@ -194,12 +253,27 @@ export class ChessUIController {
         const movesDiv = document.getElementById('moves');
         let html = '';
         
+        if (moves.length === 0) {
+            movesDiv.innerHTML = '<span class="no-moves">No moves played yet</span>';
+            return;
+        }
+        
         for (let i = 0; i < moves.length; i++) {
             if (i % 2 === 0) {
+                // Add extra space after previous move pair
+                if (i > 0) {
+                    html += ' ';
+                }
                 html += `<span class="move-number">${Math.floor(i/2 + 1)}.</span>`;
             }
-            html += `<span class="move">${moves[i].san}</span>`;
-            if (i % 2 === 1) {
+            
+            // Add the move with proper spacing
+            const isLastMove = i === moves.length - 1;
+            const moveClass = isLastMove ? 'move active' : 'move';
+            html += `<span class="${moveClass}">${moves[i].san}</span>`;
+            
+            // Add line break after black's move or at the end
+            if (i % 2 === 1 || isLastMove) {
                 html += '<br>';
             }
         }
@@ -627,11 +701,11 @@ export class ChessUIController {
 
     // Update the positions list in the UI to show orientation
     updatePositionsList() {
-        const positionsList = document.getElementById('positionsList');
+        const positionsList = document.getElementById('positions-list');
         positionsList.innerHTML = '';
         
         if (this.savedPositions.length === 0) {
-            positionsList.innerHTML = '<div class="position-item">No saved positions yet</div>';
+            positionsList.innerHTML = '<div class="position-item"><div class="position-item-info">No saved positions yet</div></div>';
             return;
         }
         
@@ -639,20 +713,23 @@ export class ChessUIController {
             const item = document.createElement('div');
             item.className = 'position-item';
             item.innerHTML = `
-                <span class="position-name">
-                    ${position.name}
-                    <span class="position-orientation">(${position.orientation})</span>
-                </span>
-                <div>
-                    <button class="delete-position" data-index="${index}">Delete</button>
+                <div class="position-item-info">
+                    <div class="position-name">${position.name}</div>
+                    <div class="position-details">
+                        <span class="position-orientation">${position.orientation} to move</span>
+                    </div>
+                </div>
+                <div class="position-item-actions">
+                    <button class="button button-small button-secondary load-position">Load</button>
+                    <button class="button button-small button-danger delete-position" data-index="${index}">Delete</button>
                 </div>
             `;
             
-            // Add click handler to load the position
-            item.addEventListener('click', (e) => {
-                if (!e.target.classList.contains('delete-position')) {
-                    this.loadPosition(position);
-                }
+            // Add click handler for the load button
+            const loadBtn = item.querySelector('.load-position');
+            loadBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                this.loadPosition(position);
             });
             
             positionsList.appendChild(item);
@@ -663,29 +740,39 @@ export class ChessUIController {
             button.addEventListener('click', (e) => {
                 e.stopPropagation();
                 const index = parseInt(button.dataset.index);
-                this.savedPositions.splice(index, 1);
-                this.savePositionsToStorage();
-                this.updatePositionsList();
+                const position = this.savedPositions[index];
+                this.showConfirmDialog(
+                    `Delete Position`,
+                    `Are you sure you want to delete "${position.name}"?`,
+                    () => {
+                        this.savedPositions.splice(index, 1);
+                        this.savePositionsToStorage();
+                        this.updatePositionsList();
+                    }
+                );
             });
         });
     }
 
     // Save current position
     saveCurrentPosition() {
-        const name = prompt('Enter a name for this position:');
-        if (!name) return;
-        
-        const position = {
-            name: name,
-            fen: this.engine.getFen(),
-            pgn: this.engine.getPgn(),
-            moves: this.engine.getHistory(),
-            orientation: this.cg.state.orientation  // Save the current board orientation
-        };
-        
-        this.savedPositions.push(position);
-        this.savePositionsToStorage();
-        this.updatePositionsList();
+        this.showSavePositionDialog((name) => {
+            if (!name) return;
+            
+            const position = {
+                name: name,
+                fen: this.engine.getFen(),
+                pgn: this.engine.getPgn(),
+                moves: this.engine.getHistory(),
+                orientation: this.cg.state.orientation  // Save the current board orientation
+            };
+            
+            this.savedPositions.push(position);
+            this.savePositionsToStorage();
+            this.updatePositionsList();
+            
+            this.updateStatus(`Position "${name}" saved successfully.`);
+        });
     }
 
     // Save positions to localStorage
@@ -719,5 +806,100 @@ export class ChessUIController {
         this.updateBoard();
         this.updateMovesList();
         this.updateStatus('Position loaded: ' + position.name);
+    }
+
+    // Show a dialog to save the current position
+    showSavePositionDialog(callback) {
+        // Create backdrop
+        const backdrop = document.createElement('div');
+        backdrop.className = 'dialog-backdrop';
+        
+        // Create dialog
+        const dialog = document.createElement('div');
+        dialog.className = 'dialog';
+        
+        // Dialog content
+        dialog.innerHTML = `
+            <div class="dialog-header">
+                <h3>Save Position</h3>
+            </div>
+            <div class="dialog-content">
+                <input type="text" class="dialog-input" id="positionNameInput" 
+                    placeholder="Enter a name for this position" autofocus>
+            </div>
+            <div class="dialog-actions">
+                <button class="button button-secondary" id="cancelSaveBtn">Cancel</button>
+                <button class="button" id="confirmSaveBtn">Save</button>
+            </div>
+        `;
+        
+        backdrop.appendChild(dialog);
+        document.body.appendChild(backdrop);
+        
+        // Set focus on input
+        setTimeout(() => {
+            const input = document.getElementById('positionNameInput');
+            if (input) input.focus();
+        }, 100);
+        
+        // Cancel button
+        document.getElementById('cancelSaveBtn').addEventListener('click', () => {
+            document.body.removeChild(backdrop);
+        });
+        
+        // Save button and enter key
+        const handleSave = () => {
+            const name = document.getElementById('positionNameInput').value.trim();
+            document.body.removeChild(backdrop);
+            callback(name);
+        };
+        
+        document.getElementById('confirmSaveBtn').addEventListener('click', handleSave);
+        
+        document.getElementById('positionNameInput').addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                handleSave();
+            } else if (e.key === 'Escape') {
+                document.body.removeChild(backdrop);
+            }
+        });
+    }
+
+    showConfirmDialog(title, message, callback) {
+        // Create backdrop
+        const backdrop = document.createElement('div');
+        backdrop.className = 'dialog-backdrop';
+        
+        // Create dialog
+        const dialog = document.createElement('div');
+        dialog.className = 'dialog';
+        
+        // Dialog content
+        dialog.innerHTML = `
+            <div class="dialog-header">
+                <h3>${title}</h3>
+            </div>
+            <div class="dialog-content">
+                <p>${message}</p>
+            </div>
+            <div class="dialog-actions">
+                <button class="button button-secondary" id="cancelConfirmBtn">Cancel</button>
+                <button class="button" id="confirmConfirmBtn">Confirm</button>
+            </div>
+        `;
+        
+        backdrop.appendChild(dialog);
+        document.body.appendChild(backdrop);
+        
+        // Cancel button
+        document.getElementById('cancelConfirmBtn').addEventListener('click', () => {
+            document.body.removeChild(backdrop);
+        });
+        
+        // Confirm button
+        document.getElementById('confirmConfirmBtn').addEventListener('click', () => {
+            document.body.removeChild(backdrop);
+            callback();
+        });
     }
 } 

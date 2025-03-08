@@ -6,7 +6,7 @@ export class ChessEngine {
         this.appliedMoves = [];
         this.undoneMoves = [];
         this.fenMoveMap = {};
-        this.autoCheckEnabled = false;
+        this.autoCheckEnabled = false;  
     }
 
     // Core game state methods
@@ -28,6 +28,30 @@ export class ChessEngine {
 
     isInCheck() {
         return this.game.in_check();
+    }
+
+    isGameOver() {
+        return this.game.game_over();
+    }
+
+    isCheckmate() {
+        return this.game.in_checkmate();
+    }
+
+    isDraw() {
+        return this.game.in_draw();
+    }
+
+    isStalemate() {
+        return this.game.in_stalemate();
+    }
+
+    isThreefoldRepetition() {
+        return this.game.in_threefold_repetition();
+    }
+
+    isInsufficientMaterial() {
+        return this.game.insufficient_material();
     }
 
     // Move management
@@ -124,7 +148,14 @@ export class ChessEngine {
                 if (!fenMap[currentFen]) {
                     fenMap[currentFen] = new Set();
                 }
-                fenMap[currentFen].add(move.notation.notation);
+                
+                // Store move with comment if it exists
+                const moveText = move.notation.notation;
+                const moveWithComment = move.comments && move.comments.length > 0 
+                    ? { san: moveText, comment: move.comments.join(' ') }
+                    : moveText;
+                
+                fenMap[currentFen].add(moveWithComment);
 
                 if (move.variations && move.variations.length) {
                     for (const variation of move.variations) {
@@ -170,9 +201,27 @@ export class ChessEngine {
         return { success: true };
     }
 
-    getValidMovesForPosition(fen) {
+    getMovesWithComments(fen) {
         const normalizedFen = this.normalizeFen(fen);
-        return this.fenMoveMap[normalizedFen] || [];
+        const moves = this.fenMoveMap[normalizedFen] || [];
+        return moves.map(move => {
+            // If move is already an object with san and comment, return it
+            if (typeof move === 'object' && move.san) {
+                return move;
+            }
+            // If it's just a string (san), return it wrapped in an object with no comment
+            return { san: move, comment: null };
+        });
+    }
+
+    getValidMoveSANs(fen) {
+        const normalizedFen = this.normalizeFen(fen);
+        const moves = this.fenMoveMap[normalizedFen] || [];
+        return moves.map(move => typeof move === 'object' && move.san ? move.san : move);
+    }
+
+    getValidMovesForPosition(fen) {
+        return this.getMovesWithComments(fen);
     }
 
     // Game mode management
