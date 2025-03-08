@@ -527,6 +527,10 @@ export class ChessUIController {
         if (result.success) {
             this.updateBoard();
             this.updateMovesList();
+            this.updatePositionStats();
+            if (this.engine.autoCheckEnabled) {
+                this.checkMoves();
+            }
         }
     }
 
@@ -535,6 +539,10 @@ export class ChessUIController {
         if (result.success) {
             this.updateBoard();
             this.updateMovesList();
+            this.updatePositionStats();
+            if (this.engine.autoCheckEnabled) {
+                this.checkMoves();
+            }
         }
     }
 
