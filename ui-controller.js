@@ -694,8 +694,10 @@ export class ChessUIController {
             if (this.currentRepertoireName === repertoire.name) {
                 this.engine.clearRepertoire();
                 this.currentRepertoireName = '';
-                document.getElementById('checkMovesBtn').disabled = true;
                 document.getElementById('saveRepertoireBtn').disabled = true;
+                
+                // Only disable the Check Moves button if there are no active repertoires
+                document.getElementById('checkMovesBtn').disabled = this.activeRepertoires.size === 0;
             }
         }
     }
@@ -784,6 +786,9 @@ export class ChessUIController {
         document.getElementById('moveStatus').className = 'move-status valid';
         document.getElementById('clearRepertoiresBtn').disabled = false;
         
+        // Enable the Check Moves button when we add a repertoire
+        document.getElementById('checkMovesBtn').disabled = false;
+        
         // Update UI
         this.updateActiveRepertoiresList();
         
@@ -808,6 +813,9 @@ export class ChessUIController {
         document.getElementById('moveStatus').textContent = 'All active repertoires cleared';
         document.getElementById('moveStatus').className = 'move-status valid';
         document.getElementById('clearRepertoiresBtn').disabled = true;
+        
+        // Enable/disable the Check Moves button based on whether we have the main repertoire
+        document.getElementById('checkMovesBtn').disabled = this.currentRepertoireName === '';
         
         // Update UI
         this.updateActiveRepertoiresList();
@@ -859,6 +867,10 @@ export class ChessUIController {
             // Update UI
             this.updateActiveRepertoiresList();
             document.getElementById('clearRepertoiresBtn').disabled = this.activeRepertoires.size === 0;
+            
+            // Enable/disable the Check Moves button based on active repertoires
+            const hasAnyRepertoire = this.currentRepertoireName !== '' || this.activeRepertoires.size > 0;
+            document.getElementById('checkMovesBtn').disabled = !hasAnyRepertoire;
             
             if (this.engine.autoCheckEnabled) {
                 this.checkMoves();
