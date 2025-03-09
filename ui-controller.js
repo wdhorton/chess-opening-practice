@@ -9,6 +9,7 @@ export class ChessUIController {
         this.savedPositions = [];
         this.repertoires = [];
         this.currentRepertoireName = "";
+        this.activeRepertoires = new Set(); // Track active repertoires
         this.initializeUI();
     }
 
@@ -64,10 +65,13 @@ export class ChessUIController {
         // Repertoire management event listeners
         document.getElementById('saveRepertoireBtn').addEventListener('click', () => this.saveCurrentRepertoire());
         document.getElementById('loadRepertoireBtn').addEventListener('click', () => this.loadSelectedRepertoire());
+        document.getElementById('addRepertoireBtn').addEventListener('click', () => this.addSelectedRepertoire());
         document.getElementById('deleteRepertoireBtn').addEventListener('click', () => this.deleteSelectedRepertoire());
+        document.getElementById('clearRepertoiresBtn').addEventListener('click', () => this.clearAllActiveRepertoires());
         document.getElementById('repertoireSelect').addEventListener('change', () => this.onRepertoireSelectionChange());
         
         this.initializeFilterControls();
+        this.updateActiveRepertoiresList();
     }
 
     handlePGNFileUpload = (event) => {
@@ -101,7 +105,15 @@ export class ChessUIController {
         const validMovesWithComments = this.engine.getValidMovesForPosition(this.engine.getFen());
         const validMoves = this.engine.getValidMoveSANs(this.engine.getFen());
         const moveStatus = document.getElementById('moveStatus');
-        const repertoireInfo = this.currentRepertoireName ? ` (${this.currentRepertoireName})` : '';
+        
+        // Get the active repertoires info
+        const activeRepertoiresCount = this.activeRepertoires.size;
+        const repertoireInfo = activeRepertoiresCount > 0 
+            ? ` (${activeRepertoiresCount} active repertoires)` 
+            : (this.currentRepertoireName ? ` (${this.currentRepertoireName})` : '');
+        
+        // Get moves per repertoire
+        const movesPerRepertoire = this.engine.getValidMovesPerRepertoire(this.engine.getFen());
         
         if (validMoves.length > 0) {
             const moveStrings = validMovesWithComments.map(move => {
@@ -113,9 +125,36 @@ export class ChessUIController {
             
             moveStatus.textContent = `Valid moves from this position${repertoireInfo}: ${moveStrings.join(', ')}`;
             moveStatus.className = 'move-status valid';
+            
+            // If we have multiple repertoires, show detailed breakdown
+            if (Object.keys(movesPerRepertoire).length > 1) {
+                let detailedInfo = '<h4>Moves by Repertoire</h4>';
+                
+                for (const [repName, moves] of Object.entries(movesPerRepertoire)) {
+                    if (moves.length > 0) {
+                        const moveStr = moves.map(move => {
+                            if (typeof move === 'object' && move.san) {
+                                const comment = move.comment ? ` (${move.comment})` : '';
+                                return `${move.san}${comment}`;
+                            }
+                            return move;
+                        }).join(', ');
+                        
+                        detailedInfo += `<div class="repertoire-moves"><strong>${repName}:</strong> ${moveStr}</div>`;
+                    }
+                }
+                
+                document.getElementById('validMoves').innerHTML = detailedInfo;
+                document.getElementById('validMoves').style.display = 'block';
+            } else {
+                document.getElementById('validMoves').innerHTML = '';
+                document.getElementById('validMoves').style.display = 'none';
+            }
         } else {
             moveStatus.textContent = `No moves found in repertoire${repertoireInfo} for this position`;
             moveStatus.className = 'move-status invalid';
+            document.getElementById('validMoves').innerHTML = '';
+            document.getElementById('validMoves').style.display = 'none';
         }
     }
 
@@ -609,12 +648,26 @@ export class ChessUIController {
         }
         
         const repertoire = this.repertoires[selectedIndex - 1]; // Adjusting for the placeholder option
+        
+        // Clear existing active repertoires
+        this.activeRepertoires.clear();
+        this.engine.clearAllRepertoires();
+        
+        // Set main repertoire
         this.engine.setRepertoire(repertoire.fenMoveMap);
         this.currentRepertoireName = repertoire.name;
         
         document.getElementById('checkMovesBtn').disabled = false;
         document.getElementById('moveStatus').textContent = `Repertoire "${repertoire.name}" loaded successfully: ${Object.keys(repertoire.fenMoveMap).length} positions`;
         document.getElementById('moveStatus').className = 'move-status valid';
+        
+        // Update UI
+        document.getElementById('clearRepertoiresBtn').disabled = true;
+        this.updateActiveRepertoiresList();
+        
+        if (this.engine.autoCheckEnabled) {
+            this.checkMoves();
+        }
     }
     
     deleteSelectedRepertoire() {
@@ -653,9 +706,11 @@ export class ChessUIController {
         
         if (selectedIndex <= 0) {
             document.getElementById('loadRepertoireBtn').disabled = true;
+            document.getElementById('addRepertoireBtn').disabled = true;
             document.getElementById('deleteRepertoireBtn').disabled = true;
         } else {
             document.getElementById('loadRepertoireBtn').disabled = false;
+            document.getElementById('addRepertoireBtn').disabled = false;
             document.getElementById('deleteRepertoireBtn').disabled = false;
         }
     }
@@ -699,6 +754,114 @@ export class ChessUIController {
             } catch (e) {
                 console.error('Error loading repertoires:', e);
                 this.repertoires = [];
+            }
+        }
+    }
+    
+    // Add a repertoire to active repertoires
+    addSelectedRepertoire() {
+        const select = document.getElementById('repertoireSelect');
+        const selectedIndex = select.selectedIndex;
+        
+        if (selectedIndex <= 0) {
+            alert('Please select a repertoire to add');
+            return;
+        }
+        
+        const repertoire = this.repertoires[selectedIndex - 1]; // Adjusting for the placeholder option
+        
+        // Check if already active
+        if (this.activeRepertoires.has(repertoire.name)) {
+            alert(`Repertoire "${repertoire.name}" is already active`);
+            return;
+        }
+        
+        // Add to active repertoires
+        this.activeRepertoires.add(repertoire.name);
+        this.engine.addActiveRepertoire(repertoire.name, repertoire.fenMoveMap);
+        
+        document.getElementById('moveStatus').textContent = `Added repertoire "${repertoire.name}" to active repertoires`;
+        document.getElementById('moveStatus').className = 'move-status valid';
+        document.getElementById('clearRepertoiresBtn').disabled = false;
+        
+        // Update UI
+        this.updateActiveRepertoiresList();
+        
+        if (this.engine.autoCheckEnabled) {
+            this.checkMoves();
+        }
+    }
+    
+    // Clear all active repertoires
+    clearAllActiveRepertoires() {
+        this.activeRepertoires.clear();
+        this.engine.clearAllRepertoires();
+        
+        // Set main repertoire again if there is one
+        if (this.currentRepertoireName) {
+            const repertoire = this.repertoires.find(r => r.name === this.currentRepertoireName);
+            if (repertoire) {
+                this.engine.setRepertoire(repertoire.fenMoveMap);
+            }
+        }
+        
+        document.getElementById('moveStatus').textContent = 'All active repertoires cleared';
+        document.getElementById('moveStatus').className = 'move-status valid';
+        document.getElementById('clearRepertoiresBtn').disabled = true;
+        
+        // Update UI
+        this.updateActiveRepertoiresList();
+        
+        if (this.engine.autoCheckEnabled) {
+            this.checkMoves();
+        }
+    }
+    
+    // Update the active repertoires list in the UI
+    updateActiveRepertoiresList() {
+        const activeRepertoiresList = document.getElementById('activeRepertoires');
+        
+        if (this.activeRepertoires.size === 0) {
+            activeRepertoiresList.innerHTML = '<div class="no-active">No active repertoires</div>';
+            return;
+        }
+        
+        let html = '';
+        for (const repName of this.activeRepertoires) {
+            html += `
+                <div class="active-repertoire-item">
+                    <span class="repertoire-name">${repName}</span>
+                    <button class="button button-small button-danger remove-repertoire" data-name="${repName}">Remove</button>
+                </div>
+            `;
+        }
+        
+        activeRepertoiresList.innerHTML = html;
+        
+        // Add click handlers for remove buttons
+        document.querySelectorAll('.remove-repertoire').forEach(button => {
+            button.addEventListener('click', (e) => {
+                const repName = e.target.dataset.name;
+                this.removeActiveRepertoire(repName);
+            });
+        });
+    }
+    
+    // Remove a repertoire from active repertoires
+    removeActiveRepertoire(name) {
+        if (this.activeRepertoires.has(name)) {
+            this.activeRepertoires.delete(name);
+            this.engine.removeActiveRepertoire(name);
+            
+            document.getElementById('moveStatus').textContent = `Removed repertoire "${name}" from active repertoires`;
+            document.getElementById('moveStatus').className = 'move-status valid';
+            
+            // Update UI
+            this.updateActiveRepertoiresList();
+            document.getElementById('clearRepertoiresBtn').disabled = this.activeRepertoires.size === 0;
+            
+            if (this.engine.autoCheckEnabled) {
+                this.checkMoves();
             }
         }
     }

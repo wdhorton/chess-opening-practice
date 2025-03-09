@@ -77,7 +77,8 @@
                                 <option value="">-- Select a saved repertoire --</option>
                             </select>
                             <div class="repertoire-buttons">
-                                <button id="loadRepertoireBtn" class="button" disabled>Load</button>
+                                <button id="loadRepertoireBtn" class="button" disabled>Replace</button>
+                                <button id="addRepertoireBtn" class="button button-success" disabled>Add</button>
                                 <button id="deleteRepertoireBtn" class="button button-danger" disabled>Delete</button>
                             </div>
                         </div>
@@ -90,6 +91,13 @@
                                 <label for="autoCheckMoves">Auto-check moves</label>
                             </div>
                         </div>
+                    </div>
+                    <div class="active-repertoires-section">
+                        <h4 class="section-title">Active Repertoires</h4>
+                        <div id="activeRepertoires" class="active-repertoires-list">
+                            <div class="no-active">No active repertoires</div>
+                        </div>
+                        <button id="clearRepertoiresBtn" class="button button-danger" disabled>Clear All</button>
                     </div>
                     <div id="validMoves" class="valid-moves"></div>
                     <div id="moveStatus" class="move-status"></div>
