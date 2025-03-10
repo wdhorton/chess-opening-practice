@@ -439,6 +439,69 @@ h1 {
     font-size: 0.9rem;
 }
 
+.active-repertoires-section {
+    margin-top: var(--spacing-md);
+    padding: var(--spacing-md);
+    border-radius: var(--border-radius);
+    background-color: var(--background-light);
+    border: 1px solid var(--border-color);
+}
+
+.section-title {
+    font-size: 1rem;
+    margin-bottom: var(--spacing-sm);
+    color: var(--text-dark);
+    font-weight: 600;
+}
+
+.active-repertoires-list {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-sm);
+    margin-bottom: var(--spacing-sm);
+    max-height: 200px;
+    overflow-y: auto;
+}
+
+.active-repertoire-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: var(--spacing-sm);
+    background-color: var(--background-card);
+    border-radius: var(--border-radius);
+    border: 1px solid var(--border-color);
+}
+
+.repertoire-name {
+    font-weight: 500;
+    flex: 1;
+}
+
+.no-active {
+    color: var(--text-light);
+    font-style: italic;
+    text-align: center;
+    padding: var(--spacing-sm);
+}
+
+.repertoire-moves {
+    margin-bottom: var(--spacing-sm);
+    padding: var(--spacing-sm);
+    background-color: var(--background-card);
+    border-radius: var(--border-radius);
+    border: 1px solid var(--border-color);
+}
+
+#validMoves {
+    margin-top: var(--spacing-md);
+    padding: var(--spacing-md);
+    border-radius: var(--border-radius);
+    background-color: var(--background-light);
+    border: 1px solid var(--border-color);
+    display: none;
+}
+
 .move-status.valid {
     background-color: #e8f5e9;
     color: #2e7d32;
@@ -665,6 +728,14 @@ h1 {
 .repertoire-buttons {
     display: flex;
     gap: var(--spacing-sm);
+}
+
+.button-success {
+    background-color: var(--success-color);
+}
+
+.button-success:hover {
+    background-color: #0b8043; /* Darker green */
 }
 
 /* Position items */
