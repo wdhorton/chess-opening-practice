@@ -177,7 +177,24 @@ export class ChessUIController {
             (this.engine.getTurn() === 'w' && this.engine.playerColor === 'white') || 
             (this.engine.getTurn() === 'b' && this.engine.playerColor === 'black');
 
-        const result = this.engine.makeMove({ from: orig, to: dest });
+        // Check for pawn promotion
+        const isPawnPromotion = (piece) => {
+            console.log(piece)
+            return piece.role === 'pawn' && 
+                  ((piece.color === 'white' && dest[1] === '8') || 
+                   (piece.color === 'black' && dest[1] === '1'));
+        };
+        
+        // Get the piece at the destination square
+        const piece = this.cg.state.pieces.get(dest);
+        
+        // Create the move object, add promotion to queen if needed
+        const moveObj = { from: orig, to: dest };
+        if (piece && isPawnPromotion(piece)) {
+            moveObj.promotion = 'q';
+        }
+        
+        const result = this.engine.makeMove(moveObj);
         
         if (result.success) {
             if (isPlayerMove && this.engine.autoCheckEnabled) {

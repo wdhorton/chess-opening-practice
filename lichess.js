@@ -46,7 +46,34 @@ export class LichessAPI {
         filters.speeds.forEach(speed => params.append('speeds[]', speed));
         filters.ratings.forEach(rating => params.append('ratings[]', rating));
         
-        return await this.fetchWithRetry(`https://explorer.lichess.ovh/lichess?${params.toString()}`);
+        // Check if there are 4 or less non-king or pawn pieces in the position
+        const baseUrl = this.hasLessThanFiveNonKingPawnPieces(fen) 
+            ? 'http://localhost:8000/lichess' 
+            : 'https://explorer.lichess.ovh/lichess';
+        
+        return await this.fetchWithRetry(`${baseUrl}?${params.toString()}`);
+    }
+
+    static hasLessThanFiveNonKingPawnPieces(fen) {
+        // Extract the piece placement data from FEN (first part before the first space)
+        const piecePlacement = fen.split(' ')[0];
+        
+        // Initialize counter for non-king, non-pawn pieces
+        let nonKingPawnPieceCount = 0;
+        
+        // Loop through each character in the piece placement part
+        for (const char of piecePlacement) {
+            // Skip digits (empty squares) and '/' (row separators)
+            if (/[0-9\/]/.test(char)) continue;
+            
+            // Count pieces that are not kings (k/K) or pawns (p/P)
+            if (!/[kKpP]/.test(char)) {
+                nonKingPawnPieceCount++;
+            }
+        }
+        
+        // Return true if there are 4 or fewer non-king, non-pawn pieces
+        return nonKingPawnPieceCount <= 4;
     }
 
     static async getPositionStats(fen, filters, playerColor) {
