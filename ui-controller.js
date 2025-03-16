@@ -10,6 +10,8 @@ export class ChessUIController {
         this.repertoires = [];
         this.currentRepertoireName = "";
         this.activeRepertoires = new Set(); // Track active repertoires
+        this.customPositionSet = false; // Flag to track if user set a custom position
+        this.initialFen = null; // Store the initial custom position FEN
         this.initializeUI();
     }
 
@@ -159,10 +161,28 @@ export class ChessUIController {
     }
 
     goToLichessAnalysis() {
+        // Get moves played
         const moves = this.engine.getHistory({ verbose: false });
-        const pgnMoves = moves.join('_');
-        const url = `https://lichess.org/analysis/pgn/${encodeURIComponent(pgnMoves)}`;
-        window.open(url, '_blank');
+        
+        // Check if we're using a custom starting position
+        if (this.customPositionSet && this.initialFen) {
+            // Custom position - create a PGN with the FEN tag
+            const movesText = moves.join(' ');
+            
+            // Create a proper PGN with the starting FEN
+            const pgn = `[FEN "${this.initialFen}"]
+
+${movesText}`;
+            
+            // Send the full PGN to Lichess
+            const url = `https://lichess.org/analysis/pgn/${encodeURIComponent(pgn)}`;
+            window.open(url, '_blank');
+        } else {
+            // Standard position - just use moves as before
+            const pgnMoves = moves.join('_');
+            const url = `https://lichess.org/analysis/pgn/${encodeURIComponent(pgnMoves)}`;
+            window.open(url, '_blank');
+        }
     }
 
     goToChessableSearch() {
@@ -521,7 +541,11 @@ export class ChessUIController {
     resetPosition() {
         this.engine.resetPosition();
         this.updateBoard();
+        this.updateStatus();
         this.updateMovesList();
+        // Reset custom position flag when board is reset
+        this.customPositionSet = false;
+        this.initialFen = null;
     }
 
     async copyFen() {
@@ -554,6 +578,10 @@ export class ChessUIController {
             this.updateStatus('Position set from FEN');
             this.updateMovesList();
             fenInput.value = '';
+            
+            // Set the custom position flag and store the initial FEN
+            this.customPositionSet = true;
+            this.initialFen = fen;
         } else {
             console.error('Invalid FEN:', result.error);
             this.updateStatus('Invalid FEN string');
@@ -969,6 +997,9 @@ export class ChessUIController {
         
         if (!result.success) {
             result = this.engine.setPositionFromFen(position.fen);
+            // Set the custom position flag and store the initial FEN
+            this.customPositionSet = true;
+            this.initialFen = position.fen;
         }
 
         if (!result.success) {
